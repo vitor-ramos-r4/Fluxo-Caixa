@@ -1,0 +1,24 @@
+# Normaliza quebras de linha no repositório.
+#
+# Sem isso, o Git no Windows converte LF para CRLF no checkout e o arquivo
+# aparece como modificado sem ninguém ter mexido nele. O padrão abaixo mantém
+# LF no repositório e deixa o Git decidir o formato de trabalho local.
+* text=auto eol=lf
+
+# Binários que não devem sofrer conversão alguma.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.xlsx binary
+*.woff binary
+*.woff2 binary
+
+# Arquivos que exigem CRLF para funcionar em ferramentas do Windows.
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+*.ps1  text eol=crlf
+
+# O lockfile é gerado; não poluir o diff.
+package-lock.json -diff linguist-generated
