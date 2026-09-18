@@ -17,6 +17,8 @@ import { ReconciliationPage } from '@/pages/ReconciliationPage'
 import { GoalsPage } from '@/pages/GoalsPage'
 import { OrganizationsPage } from '@/pages/OrganizationsPage'
 import { SettingsPage } from '@/pages/SettingsPage'
+import { TeamPage } from '@/pages/TeamPage'
+import { PlatformAdminPage } from '@/pages/PlatformAdminPage'
 
 /* -------------------------------------------------------------------------- */
 /* Guardas de rota                                                             */
@@ -161,7 +163,13 @@ export function AppRoutes() {
       {protectedRoute('/relatorios', <ReportsPage />)}
       {protectedRoute('/conciliacao', <ReconciliationPage />)}
       {protectedRoute('/metas', <GoalsPage />)}
+      {protectedRoute('/equipe', <TeamPage />)}
       {protectedRoute('/configuracoes', <SettingsPage />)}
+
+      {/* Administração da plataforma: a página valida o privilégio global.
+          A rota fica acessível para qualquer sessão; quem não for
+          administrador recebe a mensagem de acesso restrito da própria tela. */}
+      {protectedRoute('/administracao', <PlatformAdminPage />)}
 
       {/* Empresas: exige login, mas não exige empresa ativa. */}
       <Route

@@ -2,6 +2,7 @@ import { supabase, describeError } from '@/lib/supabase'
 import type {
   ChartOfAccount,
   Entry,
+  MemberRole,
   EntryStatus,
   EntryWithRelations,
   MonthlyByAccount,
@@ -21,9 +22,55 @@ import type {
 
 export interface OrganizationWithRole extends Organization {
   role: string
+  /** `true` quando o acesso vem do privilégio global, não de um vínculo. */
+  viaAdminGlobal?: boolean
 }
 
+/** O usuário é administrador global da plataforma? */
+export async function isSuperAdmin(): Promise<boolean> {
+  const { data, error } = await supabase.rpc('is_super_admin')
+  // Um erro aqui não deve derrubar a navegação: na dúvida, tratamos como
+  // usuário comum, que é o caso mais restritivo.
+  if (error) return false
+  return data === true
+}
+
+/**
+ * Empresas que o usuário pode acessar.
+ *
+ * Para o administrador global, devolve todas — inclusive as de outras contas.
+ * Elas entram com o papel `super_admin`, que não é um vínculo real mas reflete
+ * a permissão efetiva na interface.
+ */
 export async function listOrganizations(): Promise<OrganizationWithRole[]> {
+  const superAdmin = await isSuperAdmin()
+
+  if (superAdmin) {
+    const { data, error } = await supabase
+      .from('organizations')
+      .select('*')
+      .eq('is_archived', false)
+      .order('created_at', { ascending: true })
+
+    if (error) throw new Error(describeError(error))
+
+    // Descobre em quais delas o admin também é membro, para exibir o papel
+    // real em vez de "super_admin" quando existir um vínculo.
+    const { data: memberships } = await supabase
+      .from('memberships')
+      .select('org_id, role')
+
+    const roleByOrg = new Map(
+      (memberships ?? []).map((m) => [m.org_id as string, m.role as string]),
+    )
+
+    return (data ?? []).map((org) => ({
+      ...org,
+      role: roleByOrg.get(org.id) ?? 'super_admin',
+      viaAdminGlobal: !roleByOrg.has(org.id),
+    }))
+  }
+
   const { data: memberships, error: mErr } = await supabase
     .from('memberships')
     .select('org_id, role')
@@ -668,4 +715,134 @@ export async function seedDemoData(orgId: string, months = 12): Promise<number> 
 
   if (error) throw new Error(describeError(error))
   return data as number
+}
+
+
+/* ========================================================================== */
+/* Gestão de equipe                                                            */
+/* ========================================================================== */
+
+export interface OrgMember {
+  membership_id: string
+  user_id: string
+  email: string
+  full_name: string
+  role: MemberRole
+  created_at: string
+  /** `true` quando é o próprio usuário logado. */
+  is_self: boolean
+}
+
+/**
+ * Equipe de uma empresa.
+ *
+ * Passa por RPC porque `memberships` guarda apenas `user_id` — o e-mail e o
+ * nome vivem em `auth.users`, que o cliente não acessa.
+ */
+export async function listOrgMembers(orgId: string): Promise<OrgMember[]> {
+  const { data, error } = await supabase.rpc('list_org_members', {
+    p_org_id: orgId,
+  })
+  if (error) throw new Error(describeError(error))
+  return (data ?? []) as OrgMember[]
+}
+
+export type InviteOutcome = 'added' | 'already_member' | 'not_found'
+
+export interface InviteResult {
+  outcome: InviteOutcome
+  message: string
+  userId: string | null
+}
+
+/** Adiciona alguém à equipe pelo e-mail. A pessoa precisa já ter conta. */
+export async function inviteMemberByEmail(
+  orgId: string,
+  email: string,
+  role: MemberRole,
+): Promise<InviteResult> {
+  const { data, error } = await supabase.rpc('invite_member_by_email', {
+    p_org_id: orgId,
+    p_email: email.trim(),
+    p_role: role,
+  })
+
+  if (error) throw new Error(describeError(error))
+
+  const row = (Array.isArray(data) ? data[0] : data) as
+    | { outcome: InviteOutcome; message: string; user_id: string | null }
+    | undefined
+
+  return {
+    outcome: row?.outcome ?? 'not_found',
+    message: row?.message ?? 'Não foi possível concluir o convite.',
+    userId: row?.user_id ?? null,
+  }
+}
+
+/** Altera o papel de um membro na empresa. */
+export async function updateMemberRole(
+  membershipId: string,
+  role: MemberRole,
+): Promise<void> {
+  const { error } = await supabase
+    .from('memberships')
+    .update({ role })
+    .eq('id', membershipId)
+  if (error) throw new Error(describeError(error))
+}
+
+/** Remove alguém da equipe. */
+export async function removeMember(membershipId: string): Promise<void> {
+  const { error } = await supabase
+    .from('memberships')
+    .delete()
+    .eq('id', membershipId)
+  if (error) throw new Error(describeError(error))
+}
+
+/* ========================================================================== */
+/* Administração da plataforma (super_admin)                                   */
+/* ========================================================================== */
+
+export interface PlatformOrganization {
+  id: string
+  name: string
+  document: string | null
+  segment: string | null
+  is_archived: boolean
+  created_at: string
+  owner_email: string
+  member_count: number
+  entry_count: number
+  /** `true` quando o admin também é membro desta empresa. */
+  is_mine: boolean
+}
+
+/** Todas as empresas da plataforma. Exige privilégio global. */
+export async function listAllOrganizations(): Promise<PlatformOrganization[]> {
+  const { data, error } = await supabase.rpc('list_all_organizations')
+  if (error) throw new Error(describeError(error))
+  return (data ?? []) as PlatformOrganization[]
+}
+
+/** Concede ou revoga o privilégio global de administração. */
+export async function setSuperAdmin(
+  email: string,
+  enabled: boolean,
+): Promise<{ outcome: string; message: string }> {
+  const { data, error } = await supabase.rpc('set_super_admin', {
+    p_email: email.trim(),
+    p_enabled: enabled,
+  })
+  if (error) throw new Error(describeError(error))
+
+  const row = (Array.isArray(data) ? data[0] : data) as
+    | { outcome: string; message: string }
+    | undefined
+
+  return {
+    outcome: row?.outcome ?? 'unknown',
+    message: row?.message ?? '',
+  }
 }

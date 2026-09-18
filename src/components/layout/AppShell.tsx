@@ -7,6 +7,7 @@ import {
   ChevronDown,
   CircleDollarSign,
   FileBarChart,
+  Globe,
   LayoutDashboard,
   Layers,
   ListOrdered,
@@ -16,6 +17,7 @@ import {
   Settings,
   Target,
   TrendingUp,
+  UserCog,
   Users,
   Wallet,
   X,
@@ -62,13 +64,30 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
       { to: '/metas', label: 'Metas e orçamento', icon: Target },
     ],
   },
+  {
+    label: 'Sistema',
+    items: [
+      { to: '/equipe', label: 'Equipe', icon: UserCog },
+      { to: '/empresas', label: 'Empresas', icon: Building2 },
+      { to: '/configuracoes', label: 'Configurações', icon: Settings },
+    ],
+  },
 ]
+
+/**
+ * Item visível apenas para o administrador global da plataforma.
+ * Fica fora de NAV_SECTIONS porque depende do privilégio do usuário.
+ */
+const ADMIN_NAV_ITEM: NavItem = {
+  to: '/administracao',
+  label: 'Administração',
+  icon: Globe,
+}
 
 /** Todas as rotas com título, usado pela barra superior. */
 const ALL_NAV_ITEMS: NavItem[] = [
   ...NAV_SECTIONS.flatMap((section) => section.items),
-  { to: '/configuracoes', label: 'Configurações', icon: Settings },
-  { to: '/empresas', label: 'Empresas', icon: Building2 },
+  ADMIN_NAV_ITEM,
 ]
 
 /* -------------------------------------------------------------------------- */
@@ -119,6 +138,7 @@ function Sidebar({
   onCloseMobile: () => void
 }) {
   const { signOut } = useAuth()
+  const { isSuperAdmin } = useOrganization()
   const displayName = useDisplayName()
 
   return (
@@ -201,26 +221,52 @@ function Sidebar({
           </div>
         ))}
 
-        <div>
-          <p className="px-2.5 mb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-ink-600">
-            Sistema
-          </p>
-          <NavLink
-            to="/configuracoes"
-            className={({ isActive }) =>
-              cn(
-                'group relative flex items-center gap-2.5 rounded-lg px-2.5 py-2',
-                'text-[13px] transition-colors duration-100',
-                isActive
-                  ? 'bg-white/8 text-white font-medium'
-                  : 'text-ink-400 hover:bg-white/4 hover:text-ink-100',
-              )
-            }
-          >
-            <Settings className="size-4 shrink-0 text-ink-500" strokeWidth={2} />
-            <span>Configurações</span>
-          </NavLink>
-        </div>
+        {/* Área do administrador global: só aparece para quem tem o privilégio,
+            que é verificado no banco por is_super_admin(). */}
+        {isSuperAdmin && (
+          <div>
+            <p className="px-2.5 mb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-ink-600">
+              Plataforma
+            </p>
+            <ul className="space-y-0.5">
+              <li>
+                <NavLink
+                  to={ADMIN_NAV_ITEM.to}
+                  className={({ isActive }) =>
+                    cn(
+                      'group relative flex items-center gap-2.5 rounded-lg px-2.5 py-2',
+                      'text-[13px] transition-colors duration-100',
+                      isActive
+                        ? 'bg-white/8 text-white font-medium'
+                        : 'text-ink-400 hover:bg-white/4 hover:text-ink-100',
+                    )
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      {isActive && (
+                        <span
+                          className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-[2.5px] rounded-r-full bg-brand-400"
+                          aria-hidden
+                        />
+                      )}
+                      <ADMIN_NAV_ITEM.icon
+                        className={cn(
+                          'size-4 shrink-0',
+                          isActive
+                            ? 'text-brand-400'
+                            : 'text-ink-500 group-hover:text-ink-300',
+                        )}
+                        strokeWidth={2}
+                      />
+                      <span className="truncate">{ADMIN_NAV_ITEM.label}</span>
+                    </>
+                  )}
+                </NavLink>
+              </li>
+            </ul>
+          </div>
+        )}
       </nav>
 
       {/* Usuário */}

@@ -8,7 +8,11 @@ import {
   type ReactNode,
 } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { listOrganizations, type OrganizationWithRole } from '@/services/api'
+import {
+  isSuperAdmin as checkSuperAdmin,
+  listOrganizations,
+  type OrganizationWithRole,
+} from '@/services/api'
 
 interface OrgContextValue {
   organizations: OrganizationWithRole[]
@@ -17,6 +21,11 @@ interface OrgContextValue {
   /** Papel do usuário na empresa ativa — controla o que a UI libera. */
   role: string
   canEdit: boolean
+  /**
+   * Administrador global da plataforma: enxerga e administra todas as
+   * empresas, de qualquer conta. Distinto do `admin` por empresa.
+   */
+  isSuperAdmin: boolean
   loading: boolean
   /** Mensagem legível quando a listagem falha; `null` em caso de sucesso. */
   error: string | null
@@ -38,6 +47,16 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     queryFn: listOrganizations,
     staleTime: 60_000,
   })
+
+  // Consulta separada: o privilégio global não muda com a empresa ativa, e
+  // uma falha aqui não deve impedir o uso normal do sistema.
+  const { data: superAdminFlag } = useQuery({
+    queryKey: ['is-super-admin'],
+    queryFn: checkSuperAdmin,
+    staleTime: 5 * 60_000,
+  })
+
+  const isSuperAdmin = superAdminFlag === true
 
   const organizations = useMemo(() => data ?? [], [data])
 
@@ -70,7 +89,12 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       activeOrg,
       activeOrgId: activeOrg?.id ?? null,
       role,
-      canEdit: role === 'owner' || role === 'admin' || role === 'member',
+      canEdit:
+        isSuperAdmin ||
+        role === 'owner' ||
+        role === 'admin' ||
+        role === 'member',
+      isSuperAdmin,
       loading: isLoading,
       error: queryError
         ? queryError instanceof Error
@@ -80,7 +104,16 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       setActiveOrgId,
       refetch: () => void refetch(),
     }),
-    [organizations, activeOrg, role, isLoading, queryError, setActiveOrgId, refetch],
+    [
+      organizations,
+      activeOrg,
+      role,
+      isSuperAdmin,
+      isLoading,
+      queryError,
+      setActiveOrgId,
+      refetch,
+    ],
   )
 
   return <OrgContext.Provider value={value}>{children}</OrgContext.Provider>
