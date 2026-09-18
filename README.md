@@ -67,8 +67,48 @@ Abra a aplicação, clique em **Criar conta** e cadastre-se. Depois de confirmar
 o e-mail, cadastre uma empresa — o plano de contas padrão (com as 30 contas da
 planilha original) é criado automaticamente.
 
-Para explorar o sistema sem digitar dados, use **Gerar lançamentos** na página
-de Empresas: são 12 meses de movimentações sintéticas.
+### 4. (Opcional) Popular com dados de demonstração
+
+Para ter o sistema cheio sem digitar nada:
+
+```bash
+npm run seed
+```
+
+Isso cria cinco empresas fictícias de segmentos diferentes (varejo, tecnologia,
+construção civil, saúde e marketing digital), cada uma com plano de contas
+próprio, contas bancárias, clientes e fornecedores e cerca de 220 lançamentos
+ao longo de 18 meses.
+
+O script precisa da chave `service_role` (Project Settings → API), que ignora o
+RLS. Coloque em `.env.local`:
+
+```env
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOi...
+```
+
+Ela é usada **apenas** por esse script — nunca no código do aplicativo, e o
+`.env.local` está no `.gitignore`.
+
+Por padrão o script atribui as empresas ao seu usuário. Para usar outro e-mail:
+
+```bash
+npm run seed -- outro@email.com
+```
+
+Rodar de novo recria as empresas do zero (identificadas pelo CNPJ), então é
+seguro repetir.
+
+## Scripts
+
+```bash
+npm run dev        # servidor de desenvolvimento
+npm run build      # build de produção (roda o typecheck antes)
+npm run typecheck  # apenas a verificação de tipos
+npm run lint       # oxlint
+npm run seed       # popula o banco com dados de demonstração
+npm run preview    # serve o build local
+```
 
 ## Estrutura
 
@@ -149,16 +189,6 @@ UTC e pode recuar um dia no fuso brasileiro. Toda conversão passa por
 
 **Metas ficam no navegador.** São preferências de acompanhamento, não dados
 contábeis — não precisam sincronizar entre dispositivos para o recurso ser útil.
-
-## Scripts
-
-```bash
-npm run dev        # servidor de desenvolvimento
-npm run build      # build de produção (roda o typecheck antes)
-npm run typecheck  # apenas a verificação de tipos
-npm run lint       # oxlint
-npm run preview    # serve o build local
-```
 
 ## Testes do banco
 
