@@ -20,6 +20,10 @@ dist-ssr
 # Cache local do npm (usado quando o cache global é inacessível na sandbox)
 .npm-cache
 
+# Estado local do CLI do Supabase (versão baixada, link do projeto)
+supabase/.temp
+supabase/.branches
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

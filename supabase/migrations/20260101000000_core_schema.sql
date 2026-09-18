@@ -92,7 +92,27 @@ comment on table public.memberships is 'Vínculo usuário↔empresa. Base de tod
 -- -----------------------------------------------------------------------------
 -- Helper: as policies precisam checar participação sem recursão infinita.
 -- `security definer` faz a função rodar fora do RLS da própria tabela.
+--
+-- `service_role` é reconhecido como confiável: é a chave usada apenas no
+-- servidor (scripts administrativos e rotinas de manutenção) e que, por
+-- definição, ignora o RLS. Sem essa cláusula, qualquer RPC que valide
+-- permissão falharia para ela — a chave de serviço não tem `membership`.
+--
+-- Para os demais papéis nada muda: continua valendo o vínculo em
+-- `memberships`.
 -- -----------------------------------------------------------------------------
+create or replace function public.is_service_role()
+returns boolean
+language sql
+stable
+as $$
+  select coalesce(
+    nullif(current_setting('request.jwt.claim.role', true), '') = 'service_role'
+    or (auth.jwt() ->> 'role') = 'service_role',
+    false
+  );
+$$;
+
 create or replace function public.is_org_member(target_org uuid)
 returns boolean
 language sql
@@ -100,7 +120,7 @@ stable
 security definer
 set search_path = public
 as $$
-  select exists (
+  select public.is_service_role() or exists (
     select 1
     from public.memberships m
     where m.org_id = target_org
@@ -115,7 +135,7 @@ stable
 security definer
 set search_path = public
 as $$
-  select exists (
+  select public.is_service_role() or exists (
     select 1
     from public.memberships m
     where m.org_id = target_org

@@ -24,6 +24,19 @@ as $$
   select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid;
 $$;
 
+-- `auth.jwt()` devolve o payload completo. Usado para detectar o papel
+-- service_role, que não tem vínculo em `memberships`.
+create or replace function auth.jwt()
+returns jsonb
+language sql
+stable
+as $$
+  select coalesce(
+    nullif(current_setting('request.jwt.claims', true), '')::jsonb,
+    '{}'::jsonb
+  );
+$$;
+
 -- Papéis usados nas policies.
 do $$
 begin
