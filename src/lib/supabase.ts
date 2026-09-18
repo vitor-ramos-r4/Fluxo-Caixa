@@ -68,8 +68,11 @@ export function describeError(error: unknown): string {
     if (message.includes('parties')) {
       return 'Já existe um cliente ou fornecedor com esse documento.'
     }
-    if (message.includes('organizations_document_key')) {
-      return 'Já existe uma empresa cadastrada com esse CNPJ/CPF.'
+    if (
+      message.includes('organizations_owner_document_key') ||
+      message.includes('organizations_document_key')
+    ) {
+      return 'Você já cadastrou uma empresa com esse CNPJ/CPF.'
     }
     return 'Esse registro já existe.'
   }
