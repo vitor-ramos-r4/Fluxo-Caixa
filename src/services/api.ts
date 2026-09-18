@@ -846,3 +846,116 @@ export async function setSuperAdmin(
     message: row?.message ?? '',
   }
 }
+
+
+/* ========================================================================== */
+/* Módulo de usuários                                                          */
+/* ========================================================================== */
+
+export interface PlatformUser {
+  user_id: string
+  email: string
+  full_name: string
+  is_super_admin: boolean
+  created_at: string
+  last_sign_in: string | null
+  org_count: number
+  is_self: boolean
+}
+
+export interface UserMembership {
+  membership_id: string
+  org_id: string
+  org_name: string
+  role: MemberRole
+  granted_at: string
+  /** `true` quando o usuário logado pode alterar este vínculo. */
+  can_manage: boolean
+}
+
+/**
+ * Pessoas visíveis para quem consulta.
+ *
+ * O recorte vem do banco: o administrador global recebe todos; o
+ * administrador de empresa recebe apenas quem compartilha uma empresa com ele.
+ */
+export async function listUsers(): Promise<PlatformUser[]> {
+  const { data, error } = await supabase.rpc('list_users')
+  if (error) throw new Error(describeError(error))
+  return (data ?? []) as PlatformUser[]
+}
+
+/** Empresas de uma pessoa, limitadas ao que quem consulta pode administrar. */
+export async function listUserMemberships(
+  userId: string,
+): Promise<UserMembership[]> {
+  const { data, error } = await supabase.rpc('list_user_memberships', {
+    p_user_id: userId,
+  })
+  if (error) throw new Error(describeError(error))
+  return (data ?? []) as UserMembership[]
+}
+
+export type AccessOutcome =
+  | 'granted'
+  | 'revoked'
+  | 'updated'
+  | 'already_member'
+  | 'not_found'
+  | 'self'
+  | 'last_owner'
+
+export interface AccessResult {
+  outcome: AccessOutcome
+  message: string
+}
+
+function readAccessResult(data: unknown): AccessResult {
+  const row = (Array.isArray(data) ? data[0] : data) as
+    | { outcome?: string; message?: string }
+    | undefined
+
+  return {
+    outcome: (row?.outcome ?? 'not_found') as AccessOutcome,
+    message: row?.message ?? 'Não foi possível concluir a operação.',
+  }
+}
+
+/** Concede a uma pessoa acesso a uma empresa. */
+export async function grantOrgAccess(
+  userId: string,
+  orgId: string,
+  role: MemberRole,
+): Promise<AccessResult> {
+  const { data, error } = await supabase.rpc('grant_org_access', {
+    p_user_id: userId,
+    p_org_id: orgId,
+    p_role: role,
+  })
+  if (error) throw new Error(describeError(error))
+  return readAccessResult(data)
+}
+
+/** Remove o acesso de uma pessoa a uma empresa. */
+export async function revokeOrgAccess(
+  membershipId: string,
+): Promise<AccessResult> {
+  const { data, error } = await supabase.rpc('revoke_org_access', {
+    p_membership_id: membershipId,
+  })
+  if (error) throw new Error(describeError(error))
+  return readAccessResult(data)
+}
+
+/** Altera o papel de uma pessoa dentro de uma empresa. */
+export async function setMemberRole(
+  membershipId: string,
+  role: MemberRole,
+): Promise<AccessResult> {
+  const { data, error } = await supabase.rpc('set_member_role', {
+    p_membership_id: membershipId,
+    p_role: role,
+  })
+  if (error) throw new Error(describeError(error))
+  return readAccessResult(data)
+}

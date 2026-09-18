@@ -18,6 +18,7 @@ import { GoalsPage } from '@/pages/GoalsPage'
 import { OrganizationsPage } from '@/pages/OrganizationsPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { TeamPage } from '@/pages/TeamPage'
+import { UsersPage } from '@/pages/UsersPage'
 import { PlatformAdminPage } from '@/pages/PlatformAdminPage'
 
 /* -------------------------------------------------------------------------- */
@@ -164,6 +165,7 @@ export function AppRoutes() {
       {protectedRoute('/conciliacao', <ReconciliationPage />)}
       {protectedRoute('/metas', <GoalsPage />)}
       {protectedRoute('/equipe', <TeamPage />)}
+      {protectedRoute('/usuarios', <UsersPage />)}
       {protectedRoute('/configuracoes', <SettingsPage />)}
 
       {/* Administração da plataforma: a página valida o privilégio global.

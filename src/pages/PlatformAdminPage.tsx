@@ -1,18 +1,15 @@
 import { useMemo, useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import {
   Building2,
-  Check,
   Globe,
-  Info,
   Search,
   Shield,
   ShieldOff,
-  UserCog,
 } from 'lucide-react'
 import { useOrganization } from '@/contexts/OrgContext'
-import { listAllOrganizations, setSuperAdmin } from '@/services/api'
+import { listAllOrganizations } from '@/services/api'
 import { formatDate, onlyDigits } from '@/lib/format'
 import { PageBody, PageHeader, StatCard, StatGrid } from '@/components/layout/Page'
 import { Button } from '@/components/ui/Button'
@@ -25,8 +22,6 @@ import {
   TableSkeleton,
 } from '@/components/ui/Feedback'
 import { Field, Input } from '@/components/ui/Field'
-import { Modal } from '@/components/ui/Modal'
-import { cn } from '@/lib/cn'
 
 /** Formata CNPJ/CPF a partir dos dígitos crus. */
 function formatDoc(doc: string | null): string {
@@ -46,13 +41,8 @@ function formatDoc(doc: string | null): string {
  */
 export function PlatformAdminPage() {
   const { setActiveOrgId } = useOrganization()
-  const queryClient = useQueryClient()
 
   const [search, setSearch] = useState('')
-  const [granting, setGranting] = useState(false)
-  const [feedback, setFeedback] = useState<{ tone: 'ok' | 'warn'; text: string } | null>(
-    null,
-  )
 
   /*
    * A verificação de privilégio é feita pelo banco: `list_all_organizations`
@@ -88,19 +78,6 @@ export function PlatformAdminPage() {
     [all],
   )
 
-  const grantMutation = useMutation({
-    mutationFn: (input: { email: string; enabled: boolean }) =>
-      setSuperAdmin(input.email, input.enabled),
-    onSuccess: (result) => {
-      if (result.outcome === 'granted' || result.outcome === 'revoked') {
-        setFeedback({ tone: 'ok', text: result.message })
-        setGranting(false)
-        void queryClient.invalidateQueries({ queryKey: ['platform-organizations'] })
-      } else {
-        setFeedback({ tone: 'warn', text: result.message })
-      }
-    },
-  })
 
   // A verificação de acesso vem depois de todos os hooks: um `return`
   // antecipado mudaria a ordem das chamadas entre renders, o que o React
@@ -140,37 +117,7 @@ export function PlatformAdminPage() {
       <PageHeader
         title="Administração da plataforma"
         description="Todas as empresas do sistema, de todas as contas"
-        actions={
-          <Button
-            variant="secondary"
-            icon={<UserCog className="size-4" />}
-            onClick={() => {
-              setFeedback(null)
-              setGranting(true)
-            }}
-          >
-            Conceder acesso global
-          </Button>
-        }
       />
-
-      {feedback && (
-        <div
-          className={cn(
-            'mb-4 flex items-start gap-2.5 rounded-lg border px-3.5 py-3',
-            feedback.tone === 'ok'
-              ? 'border-brand-200 bg-brand-50 text-brand-800'
-              : 'border-[color-mix(in_oklch,var(--color-caution)_32%,transparent)] bg-[var(--color-caution-soft)] text-[color-mix(in_oklch,var(--color-caution)_70%,black)]',
-          )}
-        >
-          {feedback.tone === 'ok' ? (
-            <Check className="mt-0.5 size-4 shrink-0" />
-          ) : (
-            <Info className="mt-0.5 size-4 shrink-0" />
-          )}
-          <p className="flex-1 text-[13px] leading-5">{feedback.text}</p>
-        </div>
-      )}
 
       <StatGrid cols={4}>
         <StatCard
@@ -350,110 +297,7 @@ export function PlatformAdminPage() {
         </div>
       </Card>
 
-      <GrantModal
-        open={granting}
-        loading={grantMutation.isPending}
-        onClose={() => {
-          setGranting(false)
-          grantMutation.reset()
-        }}
-        onSubmit={(email, enabled) => grantMutation.mutate({ email, enabled })}
-      />
     </PageBody>
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/* Modal de concessão de acesso global                                          */
-/* -------------------------------------------------------------------------- */
-
-function GrantModal({
-  open,
-  loading,
-  onClose,
-  onSubmit,
-}: {
-  open: boolean
-  loading: boolean
-  onClose: () => void
-  onSubmit: (email: string, enabled: boolean) => void
-}) {
-  const [email, setEmail] = useState('')
-  const [enabled, setEnabled] = useState(true)
-
-  if (!open) return null
-
-  return (
-    <Modal
-      open
-      onClose={onClose}
-      title="Acesso global"
-      description="Concede ou revoga o privilégio de administrar todas as empresas."
-      footer={
-        <>
-          <Button variant="secondary" onClick={onClose} disabled={loading}>
-            Cancelar
-          </Button>
-          <Button
-            variant={enabled ? 'primary' : 'danger'}
-            loading={loading}
-            disabled={!email.includes('@')}
-            icon={enabled ? <Shield className="size-4" /> : <ShieldOff className="size-4" />}
-            onClick={() => onSubmit(email, enabled)}
-          >
-            {enabled ? 'Conceder' : 'Revogar'}
-          </Button>
-        </>
-      }
-    >
-      <div className="space-y-4">
-        <Field label="E-mail da pessoa" required hint="A conta precisa já existir.">
-          <Input
-            type="email"
-            autoFocus
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            placeholder="pessoa@empresa.com.br"
-          />
-        </Field>
-
-        <Field label="Ação">
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setEnabled(true)}
-              className={cn(
-                'flex-1 rounded-lg border px-3 py-2 text-[13px] font-medium transition-colors',
-                enabled
-                  ? 'border-brand-300 bg-brand-50 text-brand-800'
-                  : 'border-ink-200 bg-white text-ink-600 hover:bg-ink-50',
-              )}
-            >
-              Conceder
-            </button>
-            <button
-              type="button"
-              onClick={() => setEnabled(false)}
-              className={cn(
-                'flex-1 rounded-lg border px-3 py-2 text-[13px] font-medium transition-colors',
-                !enabled
-                  ? 'border-[color-mix(in_oklch,var(--color-negative)_30%,transparent)] bg-[var(--color-negative-soft)] text-negative'
-                  : 'border-ink-200 bg-white text-ink-600 hover:bg-ink-50',
-              )}
-            >
-              Revogar
-            </button>
-          </div>
-        </Field>
-
-        <div className="rounded-lg border border-[color-mix(in_oklch,var(--color-caution)_32%,transparent)] bg-[var(--color-caution-soft)] px-3.5 py-3">
-          <p className="text-[12px] leading-5 text-[color-mix(in_oklch,var(--color-caution)_70%,black)]">
-            Quem tem este privilégio enxerga os dados financeiros de{' '}
-            <strong>todas as contas</strong> do sistema. Conceda apenas a quem
-            precisa dar suporte ou consolidar a operação.
-          </p>
-        </div>
-      </div>
-    </Modal>
-  )
-}

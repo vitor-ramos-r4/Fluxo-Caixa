@@ -67,6 +67,7 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
   {
     label: 'Sistema',
     items: [
+      { to: '/usuarios', label: 'Usuários', icon: Users },
       { to: '/equipe', label: 'Equipe', icon: UserCog },
       { to: '/empresas', label: 'Empresas', icon: Building2 },
       { to: '/configuracoes', label: 'Configurações', icon: Settings },

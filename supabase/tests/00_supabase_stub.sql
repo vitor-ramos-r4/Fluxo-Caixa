@@ -6,12 +6,19 @@
 create schema if not exists auth;
 create schema if not exists extensions;
 
--- Réplica mínima de auth.users, com as colunas que as FKs e policies usam.
+-- Réplica mínima de auth.users, com as colunas que as FKs, policies e RPCs
+-- do projeto consultam. Ao adicionar uma coluna aqui, confira se ela existe
+-- no auth.users real do Supabase — o stub precisa refletir o ambiente de
+-- produção, senão os testes passam e o app falha.
 create table if not exists auth.users (
   id uuid primary key default gen_random_uuid(),
   email text unique,
   raw_user_meta_data jsonb default '{}'::jsonb,
-  created_at timestamptz default now()
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  last_sign_in_at timestamptz,
+  email_confirmed_at timestamptz,
+  banned_until timestamptz
 );
 
 -- `auth.uid()` no Supabase lê o claim `sub` do JWT. Aqui devolvemos o valor de

@@ -53,18 +53,22 @@ begin
   if not v_super then raise exception 'FALHA: chefe nao reconhecido como super_admin'; end if;
   raise notice 'OK  chefe e reconhecido como super_admin';
 
-  select count(*) into v_n from public.organizations;
+  -- Conta apenas as empresas desta suite: as demais suites rodam no mesmo\r
+  -- banco e deixariam o numero dependente da ordem de execucao.
+  select count(*) into v_n from public.organizations
+  where document in ('11111111000111','22222222000122');
   if v_n <> 2 then
-    raise exception 'FALHA: super_admin deveria ver 2 empresas, ve %', v_n;
+    raise exception 'FALHA: super_admin deveria ver as 2 empresas desta suite, ve %', v_n;
   end if;
   raise notice 'OK  super_admin ve todas as empresas (%)', v_n;
 
   -- A RPC de listagem global devolve as duas, com o responsavel de cada uma.
-  select count(*) into v_n from public.list_all_organizations();
+  select count(*) into v_n from public.list_all_organizations()
+  where document in ('11111111000111','22222222000122');
   if v_n <> 2 then
-    raise exception 'FALHA: list_all_organizations devolveu %', v_n;
+    raise exception 'FALHA: list_all_organizations nao devolveu as 2 empresas desta suite (%)', v_n;
   end if;
-  raise notice 'OK  list_all_organizations devolveu as 2 empresas';
+  raise notice 'OK  list_all_organizations devolveu as 2 empresas da suite';
 
   -- E enxerga os lancamentos de qualquer uma delas.
   select count(*) into v_n from public.monthly_cashflow;
