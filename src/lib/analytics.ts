@@ -224,6 +224,26 @@ export function computeKpis(
   }
 }
 
+/**
+ * Tom semântico do indicador de margem.
+ *
+ * Centralizado aqui porque o painel e os relatórios precisam concordar: dois
+ * limiares diferentes fariam o mesmo número aparecer verde numa tela e
+ * amarelo na outra. Os cortes acompanham os limiares usados pelos alertas.
+ */
+export function marginTone(margin: number): 'brand' | 'caution' | 'negative' {
+  if (margin < 0) return 'negative'
+  if (margin < 8) return 'caution'
+  return 'brand'
+}
+
+/** Tom semântico do atingimento de uma meta. */
+export function attainmentTone(pct: number): 'brand' | 'caution' | 'negative' {
+  if (pct >= 100) return 'brand'
+  if (pct >= 70) return 'caution'
+  return 'negative'
+}
+
 /** Melhor e pior mês por resultado operacional. */
 export function bestAndWorstMonths(series: MonthPoint[]): {
   best: MonthPoint | null

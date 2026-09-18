@@ -252,6 +252,13 @@
     animation: rise 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
   }
 
+  /* Traço do gauge radial: preenche do zero até o valor real ao montar.
+     A regra de prefers-reduced-motion no topo do arquivo já zera a duração
+     desta transição — não precisa de tratamento próprio aqui. */
+  .gauge-ring {
+    transition: stroke-dashoffset 900ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
   @keyframes shimmer {
     100% {
       transform: translateX(100%);

@@ -40,6 +40,7 @@ import {
   buildMonthSeries,
   cashflowFromAccountTotals,
   computeKpis,
+  marginTone,
 } from '@/lib/analytics'
 import {
   currentYearRange,
@@ -63,6 +64,7 @@ import {
   ErrorState,
   Skeleton,
 } from '@/components/ui/Feedback'
+import { RadialGauge } from '@/components/ui/RadialGauge'
 import { cn } from '@/lib/cn'
 
 /* -------------------------------------------------------------------------- */
@@ -256,6 +258,9 @@ export function DashboardPage() {
             <StatCard
               label="Entradas"
               value={formatCurrency(model.kpis.income)}
+              valueNumber={model.kpis.income}
+              format={formatCurrency}
+              trend={model.series.map((m) => m.income)}
               tone="positive"
               icon={<ArrowUpRight className="size-4" />}
               delta={
@@ -268,6 +273,9 @@ export function DashboardPage() {
             <StatCard
               label="Saídas"
               value={formatCurrency(model.kpis.expense)}
+              valueNumber={model.kpis.expense}
+              format={formatCurrency}
+              trend={model.series.map((m) => m.expense)}
               tone="negative"
               icon={<ArrowDownRight className="size-4" />}
               context="Total pago no período"
@@ -275,12 +283,18 @@ export function DashboardPage() {
             <StatCard
               label="Resultado"
               value={formatCurrency(model.kpis.result)}
+              valueNumber={model.kpis.result}
+              format={formatCurrency}
+              trend={model.series.map((m) => m.result)}
               tone={model.kpis.result >= 0 ? 'positive' : 'negative'}
               context={`Margem de ${formatPercent(model.kpis.margin)}`}
             />
             <StatCard
               label="Saldo em caixa"
               value={formatCurrency(model.kpis.closingBalance)}
+              valueNumber={model.kpis.closingBalance}
+              format={formatCurrency}
+              trend={model.series.map((m) => m.accumulated)}
               tone={model.kpis.closingBalance >= 0 ? 'neutral' : 'negative'}
               context={`Abertura: ${formatCurrency(model.kpis.openingBalance)}`}
             />
@@ -301,6 +315,22 @@ export function DashboardPage() {
               <CardHeader
                 title="Entradas e saídas por mês"
                 subtitle="Valores realizados, excluindo transferências entre contas"
+                action={
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-right text-[11px] leading-3.5 text-ink-500">
+                      Margem
+                      <br />
+                      operacional
+                    </span>
+                    <RadialGauge
+                      value={Math.max(0, Math.min(100, model.kpis.margin))}
+                      valueLabel={formatPercent(model.kpis.margin, 0)}
+                      size={48}
+                      strokeWidth={5}
+                      tone={marginTone(model.kpis.margin)}
+                    />
+                  </div>
+                }
               />
               <div className="p-4 pt-2">
                 <div className="h-[280px]">

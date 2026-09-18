@@ -16,6 +16,7 @@ import { queryKeys } from '@/lib/queryClient'
 import { listAccounts, listEntries } from '@/services/api'
 import {
   buildMonthSeries,
+  attainmentTone,
   cashflowFromEntries,
   computeKpis,
 } from '@/lib/analytics'
@@ -39,6 +40,7 @@ import {
 } from '@/components/ui/Feedback'
 import { CurrencyInput, Field, Input, Select } from '@/components/ui/Field'
 import { Modal } from '@/components/ui/Modal'
+import { RadialGauge } from '@/components/ui/RadialGauge'
 import { cn } from '@/lib/cn'
 
 /**
@@ -130,6 +132,12 @@ export function GoalsPage() {
 
   const loading = entriesQuery.isLoading
 
+  const incomeGoalTotal = goals
+    .filter((g) => g.kind === 'entrada')
+    .reduce((s, g) => s + g.monthlyTarget, 0)
+  const incomeAttainment =
+    incomeGoalTotal > 0 ? ((currentMonth?.income ?? 0) / incomeGoalTotal) * 100 : 0
+
   return (
     <PageBody>
       <PageHeader
@@ -166,11 +174,9 @@ export function GoalsPage() {
           <StatGrid cols={4}>
             <StatCard
               label="Meta de entradas"
-              value={formatCurrency(
-                goals
-                  .filter((g) => g.kind === 'entrada')
-                  .reduce((s, g) => s + g.monthlyTarget, 0),
-              )}
+              value={formatCurrency(incomeGoalTotal)}
+              valueNumber={incomeGoalTotal}
+              format={formatCurrency}
               context="Somatório das metas mensais"
             />
             <StatCard
@@ -180,17 +186,27 @@ export function GoalsPage() {
                   .filter((g) => g.kind === 'saida')
                   .reduce((s, g) => s + g.monthlyTarget, 0),
               )}
+              valueNumber={goals
+                .filter((g) => g.kind === 'saida')
+                .reduce((s, g) => s + g.monthlyTarget, 0)}
+              format={formatCurrency}
               context="Limite definido por mês"
             />
             <StatCard
               label="Entradas no mês"
               value={formatCurrency(currentMonth?.income ?? 0)}
+              valueNumber={currentMonth?.income ?? 0}
+              format={formatCurrency}
+              trend={model.series.map((m) => m.income)}
               tone="positive"
               context={currentMonth ? formatMonthLong(currentMonth.key) : '—'}
             />
             <StatCard
               label="Despesas no mês"
               value={formatCurrency(currentMonth?.expense ?? 0)}
+              valueNumber={currentMonth?.expense ?? 0}
+              format={formatCurrency}
+              trend={model.series.map((m) => m.expense)}
               tone="negative"
               context={currentMonth ? formatMonthLong(currentMonth.key) : '—'}
             />
@@ -201,6 +217,24 @@ export function GoalsPage() {
             <CardHeader
               title="Progresso das metas"
               subtitle="Comparação entre o realizado e o objetivo de cada mês"
+              action={
+                incomeGoalTotal > 0 ? (
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-right text-[11px] leading-3.5 text-ink-500">
+                      Meta de
+                      <br />
+                      entradas
+                    </span>
+                    <RadialGauge
+                      value={Math.min(100, incomeAttainment)}
+                      valueLabel={formatPercent(incomeAttainment, 0)}
+                      size={48}
+                      strokeWidth={5}
+                      tone={attainmentTone(incomeAttainment)}
+                    />
+                  </div>
+                ) : undefined
+              }
             />
             {goals.length === 0 ? (
               <EmptyState

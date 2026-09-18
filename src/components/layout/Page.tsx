@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/cn'
+import { AnimatedNumber } from '@/components/ui/AnimatedNumber'
+import { Sparkline } from '@/components/ui/Sparkline'
 
 /**
  * Moldura padrão das páginas: título, ações e conteúdo.
@@ -56,27 +58,48 @@ export function PageBody({
  *
  * `delta` mostra a variação em relação ao período anterior; quando ausente,
  * o espaço é reservado com uma linha de contexto para o grid não "pular".
+ *
+ * O valor pode chegar de duas formas: já formatado em `value`, ou cru em
+ * `valueNumber` junto de `format` — nesse caso a transição é animada.
  */
 export function StatCard({
   label,
   value,
+  valueNumber,
+  format,
   context,
   delta,
   tone = 'neutral',
   icon,
+  trend,
 }: {
   label: string
-  value: string
+  /** Valor já formatado. Ignorado quando `valueNumber` e `format` vêm juntos. */
+  value?: string
+  /** Número cru; com `format`, anima até este valor. */
+  valueNumber?: number
+  format?: (value: number) => string
   context?: string
   delta?: { value: number; label?: string }
   tone?: 'neutral' | 'positive' | 'negative' | 'brand'
   icon?: ReactNode
+  /** Série recente (mínimo 2 pontos) para o traço de tendência. */
+  trend?: number[]
 }) {
+  const animated = valueNumber !== undefined && format !== undefined
+
   const valueTone = {
     neutral: 'text-ink-900',
     positive: 'text-brand-700',
     negative: 'text-negative',
     brand: 'text-ink-900',
+  }[tone]
+
+  const trendColor = {
+    neutral: 'var(--color-ink-400)',
+    positive: 'var(--color-brand-500)',
+    negative: 'var(--color-negative)',
+    brand: 'var(--color-brand-500)',
   }[tone]
 
   return (
@@ -94,8 +117,16 @@ export function StatCard({
           valueTone,
         )}
       >
-        {value}
+        {animated ? (
+          <AnimatedNumber value={valueNumber} format={format} />
+        ) : (
+          value
+        )}
       </p>
+
+      {trend && trend.length >= 2 && (
+        <Sparkline data={trend} color={trendColor} className="mt-1.5" />
+      )}
 
       <div className="mt-1 flex items-center gap-1.5 min-h-4">
         {delta && (

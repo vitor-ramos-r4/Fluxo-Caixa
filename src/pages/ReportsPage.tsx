@@ -22,6 +22,7 @@ import {
   buildQuarterly,
   cashflowFromAccountTotals,
   computeKpis,
+  marginTone,
   projectSeries,
 } from '@/lib/analytics'
 import {
@@ -37,6 +38,7 @@ import { PageBody, PageHeader, StatCard, StatGrid } from '@/components/layout/Pa
 import { Button } from '@/components/ui/Button'
 import { Card, CardHeader, EmptyState, ErrorState, Skeleton } from '@/components/ui/Feedback'
 import { Field, Input } from '@/components/ui/Field'
+import { RadialGauge } from '@/components/ui/RadialGauge'
 import { cn } from '@/lib/cn'
 import { exportCashflowWorkbook } from '@/services/excel'
 
@@ -199,24 +201,36 @@ export function ReportsPage() {
             <StatCard
               label="Receita bruta"
               value={formatCurrency(model.kpis.income)}
+              valueNumber={model.kpis.income}
+              format={formatCurrency}
+              trend={model.series.map((m) => m.income)}
               tone="positive"
               context="Entradas liquidadas"
             />
             <StatCard
               label="Despesas"
               value={formatCurrency(model.kpis.expense)}
+              valueNumber={model.kpis.expense}
+              format={formatCurrency}
+              trend={model.series.map((m) => m.expense)}
               tone="negative"
               context="Saídas liquidadas"
             />
             <StatCard
               label="Resultado líquido"
               value={formatCurrency(model.kpis.result)}
+              valueNumber={model.kpis.result}
+              format={formatCurrency}
+              trend={model.series.map((m) => m.result)}
               tone={model.kpis.result >= 0 ? 'positive' : 'negative'}
               context={`Margem de ${formatPercent(model.kpis.margin)}`}
             />
             <StatCard
               label="Saldo final"
               value={formatCurrency(model.kpis.closingBalance)}
+              valueNumber={model.kpis.closingBalance}
+              format={formatCurrency}
+              trend={model.series.map((m) => m.accumulated)}
               context={`Abertura: ${formatCurrency(model.kpis.openingBalance)}`}
             />
           </StatGrid>
@@ -227,6 +241,22 @@ export function ReportsPage() {
               <CardHeader
                 title="DRE gerencial"
                 subtitle="Somente lançamentos liquidados, base caixa"
+                action={
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-right text-[11px] leading-3.5 text-ink-500">
+                      Margem
+                      <br />
+                      líquida
+                    </span>
+                    <RadialGauge
+                      value={Math.max(0, Math.min(100, model.kpis.margin))}
+                      valueLabel={formatPercent(model.kpis.margin, 0)}
+                      size={48}
+                      strokeWidth={5}
+                      tone={marginTone(model.kpis.margin)}
+                    />
+                  </div>
+                }
               />
               <div className="p-4">
                 <table className="w-full">
