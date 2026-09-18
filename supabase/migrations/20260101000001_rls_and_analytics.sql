@@ -35,10 +35,17 @@ revoke all on all tables in schema public from anon;
 --   · membro lê
 --   · quem cria vira owner (via trigger abaixo)
 --   · owner/admin alteram
+--
+-- A policy de SELECT aceita também o próprio autor da empresa. Sem isso, o
+-- retorno do INSERT falha: o PostgREST revalida a policy de SELECT contra a
+-- linha recém-inserida, e o trigger que cria o vínculo de `owner` só roda
+-- depois. O resultado era um "new row violates row-level security policy" que
+-- parecia impedir a criação, quando na verdade a empresa era gravada e só a
+-- leitura de retorno falhava.
 -- -----------------------------------------------------------------------------
 create policy organizations_select on public.organizations
   for select to authenticated
-  using (public.is_org_member(id));
+  using (public.is_org_member(id) or created_by = auth.uid());
 
 create policy organizations_insert on public.organizations
   for insert to authenticated
