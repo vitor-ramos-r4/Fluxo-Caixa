@@ -9,6 +9,7 @@ import {
   Plus,
   Search,
   ShieldCheck,
+  ShieldOff,
   ShieldPlus,
   Trash2,
   UserCheck,
@@ -77,6 +78,7 @@ export function UsersPage() {
     orgName: string
     userName: string
   } | null>(null)
+  const [confirmGlobal, setConfirmGlobal] = useState<PlatformUser | null>(null)
   const [feedback, setFeedback] = useState<{ tone: 'ok' | 'warn'; text: string } | null>(
     null,
   )
@@ -182,10 +184,16 @@ export function UsersPage() {
 
   function handleToggleGlobal(user: PlatformUser) {
     setFeedback(null)
+    setConfirmGlobal(user)
+  }
+
+  function confirmToggleGlobal() {
+    if (!confirmGlobal) return
     globalMutation.mutate({
-      email: user.email,
-      enabled: !user.is_super_admin,
+      email: confirmGlobal.email,
+      enabled: !confirmGlobal.is_super_admin,
     })
+    setConfirmGlobal(null)
   }
 
   return (
@@ -345,6 +353,69 @@ export function UsersPage() {
         />
       )}
 
+      {/* Confirmação do privilégio global: dá acesso aos dados financeiros de
+          todas as contas, então não deve sair num clique acidental. */}
+      <Modal
+        open={Boolean(confirmGlobal)}
+        onClose={() => setConfirmGlobal(null)}
+        title={
+          confirmGlobal?.is_super_admin
+            ? 'Revogar acesso global'
+            : 'Conceder acesso global'
+        }
+        description={
+          confirmGlobal?.is_super_admin
+            ? 'A pessoa deixa de administrar a plataforma.'
+            : 'A pessoa passa a administrar todas as contas.'
+        }
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setConfirmGlobal(null)}>
+              Cancelar
+            </Button>
+            <Button
+              variant={confirmGlobal?.is_super_admin ? 'danger' : 'primary'}
+              loading={globalMutation.isPending}
+              icon={
+                confirmGlobal?.is_super_admin ? (
+                  <ShieldOff className="size-4" />
+                ) : (
+                  <ShieldPlus className="size-4" />
+                )
+              }
+              onClick={confirmToggleGlobal}
+            >
+              {confirmGlobal?.is_super_admin ? 'Revogar' : 'Conceder'}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-[13px] leading-5 text-ink-600">
+          {confirmGlobal?.is_super_admin ? (
+            <>
+              <strong className="font-semibold text-ink-900">
+                {confirmGlobal?.full_name || confirmGlobal?.email}
+              </strong>{' '}
+              deixará de ver as empresas de outras contas. Os vínculos que ela
+              tem como membro continuam valendo.
+            </>
+          ) : (
+            <>
+              <strong className="font-semibold text-ink-900">
+                {confirmGlobal?.full_name || confirmGlobal?.email}
+              </strong>{' '}
+              passará a ver e administrar{' '}
+              <strong className="font-semibold text-ink-900">
+                os dados financeiros de todas as empresas do sistema
+              </strong>
+              , de qualquer conta. Conceda apenas a quem precisa dar suporte ou
+              consolidar a operação.
+            </>
+          )}
+        </p>
+      </Modal>
+
       {/* Remoção de acesso */}
       <Modal
         open={Boolean(confirmRevoke)}
@@ -460,45 +531,19 @@ function UserRow({
           </div>
         </button>
 
-        <div className="flex shrink-0 items-center gap-4">
+        <div className="flex shrink-0 items-center gap-3">
           <div className="hidden text-right sm:block">
             <p className="text-[11px] text-ink-400">Acessos</p>
             <p className="tabular text-[13px] font-medium text-ink-700">
               {user.org_count}
             </p>
           </div>
-          <div className="hidden text-right md:block">
+          <div className="hidden text-right lg:block">
             <p className="text-[11px] text-ink-400">Último acesso</p>
             <p className="text-[12px] text-ink-600">
               {user.last_sign_in ? formatDate(user.last_sign_in) : 'nunca'}
             </p>
           </div>
-
-          {/* O privilégio global só é concedido por quem já o tem, e nunca
-              sobre si mesmo — evita que alguém se auto-promova. */}
-          {canGrantGlobal && !user.is_self && (
-            <button
-              onClick={() => onToggleGlobal(user)}
-              disabled={busy}
-              title={
-                user.is_super_admin
-                  ? 'Revogar acesso global'
-                  : 'Conceder acesso global'
-              }
-              className={cn(
-                'rounded-md p-1.5 transition-colors disabled:opacity-40',
-                user.is_super_admin
-                  ? 'text-brand-600 hover:bg-brand-50'
-                  : 'text-ink-400 hover:bg-ink-100 hover:text-ink-700',
-              )}
-            >
-              {user.is_super_admin ? (
-                <ShieldCheck className="size-4" />
-              ) : (
-                <ShieldPlus className="size-4" />
-              )}
-            </button>
-          )}
 
           {grantableOrgs.length > 0 && (
             <Button
@@ -507,7 +552,27 @@ function UserRow({
               icon={<Plus className="size-3.5" />}
               onClick={onGrant}
             >
-              Conceder
+              Empresa
+            </Button>
+          )}
+
+          {/* Ação explícita, com rótulo: antes era só um ícone de escudo sem
+              texto, e passava despercebido como ação clicável. */}
+          {canGrantGlobal && !user.is_self && (
+            <Button
+              variant={user.is_super_admin ? 'secondary' : 'ghost'}
+              size="sm"
+              disabled={busy}
+              icon={
+                user.is_super_admin ? (
+                  <ShieldCheck className="size-3.5" />
+                ) : (
+                  <ShieldPlus className="size-3.5" />
+                )
+              }
+              onClick={() => onToggleGlobal(user)}
+            >
+              {user.is_super_admin ? 'Revogar global' : 'Tornar global'}
             </Button>
           )}
         </div>
