@@ -5,12 +5,21 @@
  * (abas Cadastros / Lançamentos / Análise), para que quem já usava o Excel
  * reconheça o resultado. A importação, por sua vez, aceita tanto esse layout
  * quanto arquivos mais simples, detectando as colunas pelo cabeçalho.
+ *
+ * O ExcelJS pesa quase 1 MB e só é necessário quando o usuário importa ou
+ * exporta algo, então é carregado sob demanda: quem apenas abre o painel não
+ * paga esse custo no bundle inicial.
  */
-import ExcelJS from 'exceljs'
+import type ExcelJSTypes from 'exceljs'
 import type { EntryWithRelations, MonthlyCashflow } from '@/lib/types'
 import { formatDate, toDateOnly } from '@/lib/format'
-import type { MonthPoint } from '@/lib/analytics'
-import type { DreRow } from '@/lib/analytics'
+import type { DreRow, MonthPoint } from '@/lib/analytics'
+
+/** Carrega o ExcelJS apenas quando alguma operação de planilha acontece. */
+async function loadExcelJS(): Promise<typeof ExcelJSTypes> {
+  const mod = await import('exceljs')
+  return mod.default
+}
 
 /* ========================================================================== */
 /* Exportação                                                                  */
@@ -25,33 +34,37 @@ interface ExportPayload {
   dre: DreRow[]
 }
 
-const HEADER_FILL: ExcelJS.Fill = {
+const HEADER_FILL_STYLE = {
   type: 'pattern',
   pattern: 'solid',
   fgColor: { argb: 'FF1F2421' },
-}
+} as const
 
-const HEADER_FONT: Partial<ExcelJS.Font> = {
+const HEADER_FONT_STYLE = {
   color: { argb: 'FFFFFFFF' },
   bold: true,
   size: 11,
-}
+} as const
 
 const MONEY_FORMAT = 'R$ #,##0.00'
 const DATE_FORMAT = 'dd/mm/yyyy'
 
-function styleHeaderRow(row: ExcelJS.Row, columns: number) {
+function styleHeaderRow(
+  row: ExcelJSTypes.Row,
+  columns: number,
+) {
   row.height = 20
   for (let i = 1; i <= columns; i += 1) {
     const cell = row.getCell(i)
-    cell.fill = HEADER_FILL
-    cell.font = HEADER_FONT
+    cell.fill = HEADER_FILL_STYLE
+    cell.font = HEADER_FONT_STYLE
     cell.alignment = { vertical: 'middle' }
   }
 }
 
 /** Gera e baixa o arquivo .xlsx com o fluxo de caixa do período. */
 export async function exportCashflowWorkbook(payload: ExportPayload) {
+  const ExcelJS = await loadExcelJS()
   const workbook = new ExcelJS.Workbook()
   workbook.creator = 'Fluxo de Caixa'
   workbook.created = new Date()
@@ -217,6 +230,7 @@ export async function exportMonthlyCashflow(
   organization: string,
   series: MonthPoint[],
 ) {
+  const ExcelJS = await loadExcelJS()
   const workbook = new ExcelJS.Workbook()
   const sheet = workbook.addWorksheet('Fluxo mensal')
 
@@ -306,6 +320,7 @@ const DEFAULT_EXPENSE_HINTS = [
  * próprias do usuário, localizando as colunas pelo nome do cabeçalho.
  */
 export async function parseEntriesWorkbook(file: File): Promise<ParseResult> {
+  const ExcelJS = await loadExcelJS()
   const workbook = new ExcelJS.Workbook()
   await workbook.xlsx.load(await file.arrayBuffer())
 
@@ -453,14 +468,14 @@ export async function parseEntriesWorkbook(file: File): Promise<ParseResult> {
   }
 }
 
-function readCell(row: ExcelJS.Row, columnNumber: number | undefined) {
+function readCell(row: ExcelJSTypes.Row, columnNumber: number | undefined) {
   if (!columnNumber) return null
   const value = row.getCell(columnNumber).value
   if (value === null || value === undefined || value === '') return null
 
   // Células de fórmula vêm como objeto; usamos o resultado calculado.
   if (typeof value === 'object' && 'result' in value) {
-    return (value as ExcelJS.CellFormulaValue).result ?? null
+    return (value as ExcelJSTypes.CellFormulaValue).result ?? null
   }
   if (value instanceof Date) return value
 
