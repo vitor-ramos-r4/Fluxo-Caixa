@@ -119,7 +119,7 @@ function FormSuccess({ message }: { message: string }) {
 /* -------------------------------------------------------------------------- */
 
 export function LoginPage() {
-  const { signIn, user, loading } = useAuth()
+  const { signIn, user, loading, linkError, clearLinkError } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -128,8 +128,7 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
-  const from =
-    (location.state as { from?: string } | null)?.from ?? '/'
+  const from = (location.state as { from?: string } | null)?.from ?? '/'
 
   if (!isSupabaseConfigured) {
     return <SetupNotice />
@@ -177,6 +176,23 @@ export function LoginPage() {
       }
     >
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Erro vindo do link de confirmação: fica visível até o usuário agir. */}
+        {linkError && (
+          <div
+            role="alert"
+            className="rounded-lg border border-[color-mix(in_oklch,var(--color-caution)_32%,transparent)] bg-[var(--color-caution-soft)] px-3 py-2.5 text-[13px] leading-5 text-[color-mix(in_oklch,var(--color-caution)_70%,black)]"
+          >
+            <p>{linkError}</p>
+            <button
+              type="button"
+              onClick={clearLinkError}
+              className="mt-1.5 font-medium underline underline-offset-2"
+            >
+              Entendi
+            </button>
+          </div>
+        )}
+
         <FormError message={error} />
 
         <Field label="E-mail" required>
