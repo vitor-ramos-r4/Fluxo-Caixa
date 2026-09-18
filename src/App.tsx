@@ -1,6 +1,8 @@
+import { useEffect, useState } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
 import { AppShell } from '@/components/layout/AppShell'
+import { Button } from '@/components/ui/Button'
 import { useAuth } from '@/contexts/AuthContext'
 import { useOrganization } from '@/contexts/OrgContext'
 import { ForgotPasswordPage, LoginPage, SignUpPage } from '@/pages/AuthPages'
@@ -28,6 +30,37 @@ function FullScreenLoader() {
   )
 }
 
+/**
+ * Espera do carregamento inicial.
+ *
+ * O banco do plano gratuito hiberna após um período sem uso e leva alguns
+ * segundos para responder à primeira consulta. Um indicador girando sozinho
+ * faz parecer que travou, então a mensagem só aparece depois de um tempo.
+ */
+function LoadingScreen() {
+  const [slow, setSlow] = useState(false)
+
+  useEffect(() => {
+    const timer = setTimeout(() => setSlow(true), 2500)
+    return () => clearTimeout(timer)
+  }, [])
+
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-ink-100">
+      <Loader2 className="size-5 animate-spin text-ink-400" />
+      {slow && (
+        <p className="animate-rise px-6 text-center text-[13px] leading-5 text-ink-500">
+          Ainda carregando…
+          <br />
+          <span className="text-ink-400">
+            O banco pode estar acordando após um período sem uso.
+          </span>
+        </p>
+      )}
+    </div>
+  )
+}
+
 /** Exige sessão. Guarda a rota pretendida para retomar após o login. */
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -45,11 +78,37 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
  *
  * Sem isso, as páginas montariam sem `activeOrgId` e disparariam consultas
  * inúteis antes de saberem de qual empresa buscar os dados.
+ *
+ * O primeiro acesso após um período ocioso pode demorar: o Postgres do plano
+ * gratuito hiberna e o banco leva alguns segundos para acordar. Por isso a
+ * espera passa a explicar o que está acontecendo em vez de mostrar apenas um
+ * indicador girando.
  */
 function RequireOrganization({ children }: { children: React.ReactNode }) {
-  const { activeOrgId, loading } = useOrganization()
+  const { activeOrgId, loading, error, refetch } = useOrganization()
 
-  if (loading) return <FullScreenLoader />
+  if (loading) return <LoadingScreen />
+
+  if (error) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-ink-100 px-4">
+        <div className="surface w-full max-w-sm p-6 text-center">
+          <p className="text-sm font-semibold text-ink-900">
+            Não foi possível carregar suas empresas
+          </p>
+          <p className="mt-1.5 text-[13px] leading-5 text-ink-500">{error}</p>
+          <Button
+            variant="primary"
+            className="mt-4 w-full"
+            onClick={() => void refetch()}
+          >
+            Tentar novamente
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
   // Autenticado, porém sem empresa: manda criar a primeira.
   if (!activeOrgId) return <Navigate to="/empresas" replace />
 

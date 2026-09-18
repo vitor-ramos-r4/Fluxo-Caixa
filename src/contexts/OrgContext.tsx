@@ -18,6 +18,8 @@ interface OrgContextValue {
   role: string
   canEdit: boolean
   loading: boolean
+  /** Mensagem legível quando a listagem falha; `null` em caso de sucesso. */
+  error: string | null
   setActiveOrgId: (id: string) => void
   refetch: () => void
 }
@@ -31,7 +33,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     localStorage.getItem(STORAGE_KEY),
   )
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, error: queryError, refetch } = useQuery({
     queryKey: ['organizations'],
     queryFn: listOrganizations,
     staleTime: 60_000,
@@ -70,10 +72,15 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       role,
       canEdit: role === 'owner' || role === 'admin' || role === 'member',
       loading: isLoading,
+      error: queryError
+        ? queryError instanceof Error
+          ? queryError.message
+          : 'Falha ao consultar o servidor.'
+        : null,
       setActiveOrgId,
-      refetch,
+      refetch: () => void refetch(),
     }),
-    [organizations, activeOrg, role, isLoading, setActiveOrgId, refetch],
+    [organizations, activeOrg, role, isLoading, queryError, setActiveOrgId, refetch],
   )
 
   return <OrgContext.Provider value={value}>{children}</OrgContext.Provider>
