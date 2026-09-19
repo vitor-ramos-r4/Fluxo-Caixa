@@ -79,6 +79,7 @@ export function GoalsPage() {
   const { activeOrgId, activeOrg, canEdit } = useActiveOrg()
   const [goals, setGoals] = useState<Goal[]>(loadGoals)
   const [modalOpen, setModalOpen] = useState(false)
+  const [confirmRemove, setConfirmRemove] = useState<Goal | null>(null)
 
   const range = useMemo(() => {
     const today = new Date()
@@ -128,6 +129,12 @@ export function GoalsPage() {
     const next = goals.filter((goal) => goal.id !== id)
     setGoals(next)
     saveGoals(next)
+  }
+
+  function confirmRemoveGoal() {
+    if (!confirmRemove) return
+    removeGoal(confirmRemove.id)
+    setConfirmRemove(null)
   }
 
   const loading = entriesQuery.isLoading
@@ -314,7 +321,7 @@ export function GoalsPage() {
                           </span>
                           {canEdit && (
                             <button
-                              onClick={() => removeGoal(goal.id)}
+                              onClick={() => setConfirmRemove(goal)}
                               className="text-[12px] text-ink-400 transition-colors hover:text-negative"
                             >
                               Remover
@@ -433,6 +440,35 @@ export function GoalsPage() {
         onClose={() => setModalOpen(false)}
         onSubmit={addGoal}
       />
+
+      {/* Remover a meta é irreversível (some do acompanhamento), então não
+          sai num clique acidental. */}
+      <Modal
+        open={Boolean(confirmRemove)}
+        onClose={() => setConfirmRemove(null)}
+        title="Remover meta"
+        description="A meta deixa de ser acompanhada."
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setConfirmRemove(null)}>
+              Cancelar
+            </Button>
+            <Button variant="danger" onClick={confirmRemoveGoal}>
+              Remover
+            </Button>
+          </>
+        }
+      >
+        <p className="text-[13px] leading-5 text-ink-600">
+          A meta{' '}
+          <strong className="font-semibold text-ink-900">
+            {confirmRemove?.label}
+          </strong>{' '}
+          ({formatCurrency(confirmRemove?.monthlyTarget ?? 0)}/mês) será
+          removida do acompanhamento. Os lançamentos não são afetados.
+        </p>
+      </Modal>
     </PageBody>
   )
 }

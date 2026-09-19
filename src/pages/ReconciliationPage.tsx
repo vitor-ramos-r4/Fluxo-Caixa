@@ -22,6 +22,7 @@ import {
   TableSkeleton,
 } from '@/components/ui/Feedback'
 import { Field, Input, Select } from '@/components/ui/Field'
+import { Modal } from '@/components/ui/Modal'
 import { cn } from '@/lib/cn'
 
 type Tab = 'pendentes' | 'conciliados'
@@ -39,6 +40,7 @@ export function ReconciliationPage() {
   const [tab, setTab] = useState<Tab>('pendentes')
   const [range, setRange] = useState(() => currentYearRange())
   const [walletId, setWalletId] = useState('')
+  const [confirmingPay, setConfirmingPay] = useState<EntryWithRelations | null>(null)
 
   const entriesQuery = useQuery({
     queryKey: queryKeys.entries({
@@ -102,7 +104,10 @@ export function ReconciliationPage() {
 
   const payMutation = useMutation({
     mutationFn: (id: string) => updateEntry(id, { status: 'pago' }),
-    onSuccess: invalidateEntries,
+    onSuccess: () => {
+      invalidateEntries()
+      setConfirmingPay(null)
+    },
   })
 
   const rows = tab === 'pendentes' ? pending : reconciled
@@ -271,7 +276,7 @@ export function ReconciliationPage() {
                       onReconcile={(value) =>
                         reconcileMutation.mutate({ id: entry.id, value })
                       }
-                      onPay={() => payMutation.mutate(entry.id)}
+                      onPay={() => setConfirmingPay(entry)}
                     />
                   ))}
                 </tbody>
@@ -294,6 +299,41 @@ export function ReconciliationPage() {
           </>
         )}
       </Card>
+
+      {/* Confirmação de "Marcar como pago": é uma ação irreversível sobre o
+          lançamento (muda a situação e define a data de liquidação), então
+          não sai num clique acidental. */}
+      <Modal
+        open={Boolean(confirmingPay)}
+        onClose={() => setConfirmingPay(null)}
+        title="Marcar como pago"
+        description="Confirma a liquidação do lançamento."
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setConfirmingPay(null)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="primary"
+              loading={payMutation.isPending}
+              onClick={() => confirmingPay && payMutation.mutate(confirmingPay.id)}
+            >
+              Confirmar liquidação
+            </Button>
+          </>
+        }
+      >
+        <p className="text-[13px] leading-5 text-ink-600">
+          <strong className="font-semibold text-ink-900">
+            {confirmingPay?.description}
+          </strong>{' '}
+          ({signedCurrency(Number(confirmingPay?.amount ?? 0), confirmingPay?.kind ?? 'saida')})
+          será marcado como {confirmingPay?.kind === 'entrada' ? 'recebido' : 'pago'}{' '}
+          na data {confirmingPay ? formatDate(confirmingPay.issued_on) : ''}. Esta
+          ação muda a situação do lançamento.
+        </p>
+      </Modal>
     </PageBody>
   )
 }

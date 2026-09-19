@@ -61,15 +61,29 @@ export function ReportsPage() {
     return { from: startOfMonth(start), to: endOfMonth(today) }
   }, [preset, custom])
 
+  /*
+   * Intervalo custom inválido é um caminho morto: datas invertidas devolviam
+   * uma tela vazia sem explicar o motivo. Agora isso é sinalizado antes de
+   * consultar, e a consulta é evitada.
+   */
+  const invalidCustomRange =
+    preset === 'custom' && Boolean(custom.from) && Boolean(custom.to) && custom.from > custom.to
+
+  // Consulta só com intervalo válido: evita chamadas inúteis quando o usuário
+  // está digitando as datas (from sem to, ou ainda invertidas).
+  const effectiveRange = invalidCustomRange || !custom.from || !custom.to ? null : range
+
   const entriesQuery = useQuery({
     queryKey: queryKeys.entries({ org: activeOrgId, ...range, report: true }),
     queryFn: () =>
       listEntries({ orgId: activeOrgId, from: range.from, to: range.to }, { limit: 2000 }),
+    enabled: effectiveRange !== null,
   })
 
   const cashflowQuery = useQuery({
     queryKey: queryKeys.monthlyByAccount(activeOrgId, range.from, range.to),
     queryFn: () => listMonthlyByAccount(activeOrgId, range.from, range.to),
+    enabled: effectiveRange !== null,
   })
 
   const loading = entriesQuery.isLoading || cashflowQuery.isLoading
@@ -147,6 +161,11 @@ export function ReportsPage() {
               loading={exporting}
               onClick={() => void handleExport()}
               disabled={!model.entries.length}
+              title={
+                model.entries.length
+                  ? 'Baixar o fluxo do período em Excel'
+                  : 'Sem lançamentos no período para exportar'
+              }
             >
               Exportar Excel
             </Button>
@@ -171,11 +190,29 @@ export function ReportsPage() {
                 onChange={(e) => setCustom((c) => ({ ...c, to: e.target.value }))}
               />
             </Field>
+
+            {invalidCustomRange && (
+              <div
+                role="alert"
+                className="flex-1 min-w-[220px] rounded-lg border border-[color-mix(in_oklch,var(--color-caution)_32%,transparent)] bg-[var(--color-caution-soft)] px-3 py-2.5 text-[12px] leading-5 text-[color-mix(in_oklch,var(--color-caution)_70%,black)]"
+              >
+                A data inicial está depois da data final. Ajuste o intervalo
+                para gerar os relatórios.
+              </div>
+            )}
           </div>
         </Card>
       )}
 
-      {error ? (
+      {invalidCustomRange ? (
+        <Card>
+          <EmptyState
+            icon={<FileBarChart className="size-5" />}
+            title="Intervalo inválido"
+            description="A data inicial precisa ser anterior à data final para gerar os relatórios."
+          />
+        </Card>
+      ) : error ? (
         <Card>
           <ErrorState
             message={error instanceof Error ? error.message : String(error)}

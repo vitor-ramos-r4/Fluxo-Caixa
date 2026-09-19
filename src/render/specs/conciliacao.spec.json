@@ -1,0 +1,557 @@
+{
+  "root": "e_root",
+  "elements": {
+    "e_root": {
+      "type": "Stack",
+      "props": {
+        "direction": "vertical",
+        "gap": "lg",
+        "align": "stretch",
+        "justify": null
+      },
+      "children": [
+        "e_header",
+        "e_filters",
+        "e_indicators",
+        "e_sep_1",
+        "e_toolbar",
+        "e_list"
+      ]
+    },
+    "e_header": {
+      "type": "Stack",
+      "props": {
+        "direction": "vertical",
+        "gap": "sm",
+        "align": "start",
+        "justify": null
+      },
+      "children": [
+        "e_title",
+        "e_subtitle"
+      ]
+    },
+    "e_title": {
+      "type": "Heading",
+      "props": {
+        "text": "Conciliação bancária",
+        "level": "h1"
+      }
+    },
+    "e_subtitle": {
+      "type": "Text",
+      "props": {
+        "text": "Compare os lançamentos do sistema com o extrato da conta e regularize as pendências.",
+        "variant": "muted"
+      }
+    },
+    "e_filters": {
+      "type": "Card",
+      "props": {
+        "title": "Filtros",
+        "description": "Selecione o período e a conta para carregar os lançamentos.",
+        "maxWidth": "lg",
+        "centered": false
+      },
+      "children": [
+        "e_filters_stack"
+      ]
+    },
+    "e_filters_stack": {
+      "type": "Stack",
+      "props": {
+        "direction": "vertical",
+        "gap": "md",
+        "align": "stretch",
+        "justify": null
+      },
+      "children": [
+        "e_f_periodo_ini",
+        "e_f_periodo_fim",
+        "e_f_conta",
+        "e_f_situacao",
+        "e_f_actions"
+      ]
+    },
+    "e_f_periodo_ini": {
+      "type": "Input",
+      "props": {
+        "label": "Data inicial",
+        "name": "dataInicial",
+        "type": "text",
+        "placeholder": "01/05/2025"
+      }
+    },
+    "e_f_periodo_fim": {
+      "type": "Input",
+      "props": {
+        "label": "Data final",
+        "name": "dataFinal",
+        "type": "text",
+        "placeholder": "31/05/2025"
+      }
+    },
+    "e_f_conta": {
+      "type": "Select",
+      "props": {
+        "label": "Conta bancária",
+        "name": "conta",
+        "options": [
+          "Conta Corrente 1234-5 · Banco Alfa",
+          "Conta Corrente 9876-0 · Banco Beta",
+          "Conta Poupança 4567-8 · Banco Alfa",
+          "Todas as contas"
+        ]
+      }
+    },
+    "e_f_situacao": {
+      "type": "Select",
+      "props": {
+        "label": "Situação do lançamento",
+        "name": "situacao",
+        "options": [
+          "Pendentes",
+          "Conciliados",
+          "Todos"
+        ]
+      }
+    },
+    "e_f_actions": {
+      "type": "Stack",
+      "props": {
+        "direction": "horizontal",
+        "gap": "sm",
+        "align": "center",
+        "justify": "start"
+      },
+      "children": [
+        "e_btn_aplicar",
+        "e_btn_limpar"
+      ]
+    },
+    "e_btn_aplicar": {
+      "type": "Button",
+      "props": {
+        "label": "Aplicar filtros",
+        "variant": "primary"
+      }
+    },
+    "e_btn_limpar": {
+      "type": "Button",
+      "props": {
+        "label": "Limpar filtros",
+        "variant": "outline"
+      }
+    },
+    "e_indicators": {
+      "type": "Stack",
+      "props": {
+        "direction": "horizontal",
+        "gap": "md",
+        "align": "stretch",
+        "justify": "start"
+      },
+      "children": [
+        "e_card_pendente",
+        "e_card_conciliado",
+        "e_card_progresso"
+      ]
+    },
+    "e_card_pendente": {
+      "type": "Card",
+      "props": {
+        "title": "Total pendente",
+        "description": null,
+        "maxWidth": "sm",
+        "centered": false
+      },
+      "children": [
+        "e_pend_stack"
+      ]
+    },
+    "e_pend_stack": {
+      "type": "Stack",
+      "props": {
+        "direction": "vertical",
+        "gap": "sm",
+        "align": "start",
+        "justify": null
+      },
+      "children": [
+        "e_pend_valor",
+        "e_pend_badge"
+      ]
+    },
+    "e_pend_valor": {
+      "type": "Text",
+      "props": {
+        "text": "R$ 128.450,00",
+        "variant": "strong"
+      }
+    },
+    "e_pend_badge": {
+      "type": "Badge",
+      "props": {
+        "text": "32 lançamentos",
+        "variant": "secondary"
+      }
+    },
+    "e_card_conciliado": {
+      "type": "Card",
+      "props": {
+        "title": "Conciliados no período",
+        "description": null,
+        "maxWidth": "sm",
+        "centered": false
+      },
+      "children": [
+        "e_conc_stack"
+      ]
+    },
+    "e_conc_stack": {
+      "type": "Stack",
+      "props": {
+        "direction": "vertical",
+        "gap": "sm",
+        "align": "start",
+        "justify": null
+      },
+      "children": [
+        "e_conc_valor",
+        "e_conc_badge"
+      ]
+    },
+    "e_conc_valor": {
+      "type": "Text",
+      "props": {
+        "text": "R$ 54.320,10",
+        "variant": "strong"
+      }
+    },
+    "e_conc_badge": {
+      "type": "Badge",
+      "props": {
+        "text": "18 lançamentos",
+        "variant": "outline"
+      }
+    },
+    "e_card_progresso": {
+      "type": "Card",
+      "props": {
+        "title": "Progresso da conciliação",
+        "description": "Referente ao mês corrente.",
+        "maxWidth": "sm",
+        "centered": false
+      },
+      "children": [
+        "e_progresso"
+      ]
+    },
+    "e_progresso": {
+      "type": "Progress",
+      "props": {
+        "value": 60,
+        "max": 92,
+        "label": "60 de 92 lançamentos conciliados"
+      }
+    },
+    "e_sep_1": {
+      "type": "Separator",
+      "props": {
+        "orientation": "horizontal"
+      }
+    },
+    "e_toolbar": {
+      "type": "Stack",
+      "props": {
+        "direction": "horizontal",
+        "gap": "md",
+        "align": "center",
+        "justify": "between"
+      },
+      "children": [
+        "e_toggle_group",
+        "e_toolbar_actions"
+      ]
+    },
+    "e_toggle_group": {
+      "type": "Stack",
+      "props": {
+        "direction": "horizontal",
+        "gap": "sm",
+        "align": "center",
+        "justify": "start"
+      },
+      "children": [
+        "e_tab_pendentes",
+        "e_tab_conciliados"
+      ]
+    },
+    "e_tab_pendentes": {
+      "type": "Button",
+      "props": {
+        "label": "Pendentes (32)",
+        "variant": "primary"
+      }
+    },
+    "e_tab_conciliados": {
+      "type": "Button",
+      "props": {
+        "label": "Conciliados (18)",
+        "variant": "outline"
+      }
+    },
+    "e_toolbar_actions": {
+      "type": "Stack",
+      "props": {
+        "direction": "horizontal",
+        "gap": "sm",
+        "align": "center",
+        "justify": "end"
+      },
+      "children": [
+        "e_btn_atualizar",
+        "e_btn_exportar"
+      ]
+    },
+    "e_btn_atualizar": {
+      "type": "Button",
+      "props": {
+        "label": "Atualizar dados",
+        "variant": "ghost"
+      },
+      "on": {
+        "click": {
+          "action": "refresh_data"
+        }
+      }
+    },
+    "e_btn_exportar": {
+      "type": "Button",
+      "props": {
+        "label": "Exportar relatório",
+        "variant": "outline"
+      },
+      "on": {
+        "click": {
+          "action": "export_report"
+        }
+      }
+    },
+    "e_list": {
+      "type": "Card",
+      "props": {
+        "title": "Lançamentos pendentes",
+        "description": "Compare cada item com o extrato e escolha a ação adequada.",
+        "maxWidth": "lg",
+        "centered": false
+      },
+      "children": [
+        "e_list_stack"
+      ]
+    },
+    "e_list_stack": {
+      "type": "Stack",
+      "props": {
+        "direction": "vertical",
+        "gap": "sm",
+        "align": "stretch",
+        "justify": null
+      },
+      "children": [
+        "e_item_1",
+        "e_item_2",
+        "e_item_3",
+        "e_item_4"
+      ]
+    },
+    "e_item_1": {
+      "type": "Card",
+      "props": {
+        "title": "12/05/2025 · Fornecedor Alfa Ltda",
+        "description": "Pagamento via PIX — R$ 4.320,00 · Doc. 99812",
+        "maxWidth": null,
+        "centered": false
+      },
+      "children": [
+        "e_item_1_actions"
+      ]
+    },
+    "e_item_1_actions": {
+      "type": "Stack",
+      "props": {
+        "direction": "horizontal",
+        "gap": "sm",
+        "align": "center",
+        "justify": "end"
+      },
+      "children": [
+        "e_item_1_badge",
+        "e_item_1_conciliar",
+        "e_item_1_pagar"
+      ]
+    },
+    "e_item_1_badge": {
+      "type": "Badge",
+      "props": {
+        "text": "Pendente",
+        "variant": "default"
+      }
+    },
+    "e_item_1_conciliar": {
+      "type": "Button",
+      "props": {
+        "label": "Conciliar",
+        "variant": "primary"
+      }
+    },
+    "e_item_1_pagar": {
+      "type": "Button",
+      "props": {
+        "label": "Marcar como pago",
+        "variant": "outline"
+      }
+    },
+    "e_item_2": {
+      "type": "Card",
+      "props": {
+        "title": "12/05/2025 · Cliente Beta S.A.",
+        "description": "Recebimento de boleto — R$ 12.780,50 · Doc. 99813",
+        "maxWidth": null,
+        "centered": false
+      },
+      "children": [
+        "e_item_2_actions"
+      ]
+    },
+    "e_item_2_actions": {
+      "type": "Stack",
+      "props": {
+        "direction": "horizontal",
+        "gap": "sm",
+        "align": "center",
+        "justify": "end"
+      },
+      "children": [
+        "e_item_2_badge",
+        "e_item_2_conciliar",
+        "e_item_2_pagar"
+      ]
+    },
+    "e_item_2_badge": {
+      "type": "Badge",
+      "props": {
+        "text": "Pendente",
+        "variant": "default"
+      }
+    },
+    "e_item_2_conciliar": {
+      "type": "Button",
+      "props": {
+        "label": "Conciliar",
+        "variant": "primary"
+      }
+    },
+    "e_item_2_pagar": {
+      "type": "Button",
+      "props": {
+        "label": "Marcar como pago",
+        "variant": "outline"
+      }
+    },
+    "e_item_3": {
+      "type": "Card",
+      "props": {
+        "title": "11/05/2025 · Folha de pagamento",
+        "description": "Transferência em lote — R$ 86.400,00 · Doc. 99798",
+        "maxWidth": null,
+        "centered": false
+      },
+      "children": [
+        "e_item_3_actions"
+      ]
+    },
+    "e_item_3_actions": {
+      "type": "Stack",
+      "props": {
+        "direction": "horizontal",
+        "gap": "sm",
+        "align": "center",
+        "justify": "end"
+      },
+      "children": [
+        "e_item_3_badge",
+        "e_item_3_conciliar",
+        "e_item_3_pagar"
+      ]
+    },
+    "e_item_3_badge": {
+      "type": "Badge",
+      "props": {
+        "text": "Divergente",
+        "variant": "secondary"
+      }
+    },
+    "e_item_3_conciliar": {
+      "type": "Button",
+      "props": {
+        "label": "Conciliar",
+        "variant": "primary"
+      }
+    },
+    "e_item_3_pagar": {
+      "type": "Button",
+      "props": {
+        "label": "Marcar como pago",
+        "variant": "outline"
+      }
+    },
+    "e_item_4": {
+      "type": "Card",
+      "props": {
+        "title": "10/05/2025 · Tarifa bancária",
+        "description": "Débito automático — R$ 149,90 · Doc. 99765",
+        "maxWidth": null,
+        "centered": false
+      },
+      "children": [
+        "e_item_4_actions"
+      ]
+    },
+    "e_item_4_actions": {
+      "type": "Stack",
+      "props": {
+        "direction": "horizontal",
+        "gap": "sm",
+        "align": "center",
+        "justify": "end"
+      },
+      "children": [
+        "e_item_4_badge",
+        "e_item_4_conciliar",
+        "e_item_4_pagar"
+      ]
+    },
+    "e_item_4_badge": {
+      "type": "Badge",
+      "props": {
+        "text": "Pendente",
+        "variant": "default"
+      }
+    },
+    "e_item_4_conciliar": {
+      "type": "Button",
+      "props": {
+        "label": "Conciliar",
+        "variant": "primary"
+      }
+    },
+    "e_item_4_pagar": {
+      "type": "Button",
+      "props": {
+        "label": "Marcar como pago",
+        "variant": "outline"
+      }
+    }
+  }
+}

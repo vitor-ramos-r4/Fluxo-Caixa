@@ -20,6 +20,7 @@ import { SettingsPage } from '@/pages/SettingsPage'
 import { TeamPage } from '@/pages/TeamPage'
 import { UsersPage } from '@/pages/UsersPage'
 import { PlatformAdminPage } from '@/pages/PlatformAdminPage'
+import { AiRenderPage } from '@/pages/AiRenderPage'
 
 /* -------------------------------------------------------------------------- */
 /* Guardas de rota                                                             */
@@ -164,6 +165,7 @@ export function AppRoutes() {
       {protectedRoute('/relatorios', <ReportsPage />)}
       {protectedRoute('/conciliacao', <ReconciliationPage />)}
       {protectedRoute('/metas', <GoalsPage />)}
+      {protectedRoute('/ai-render', <AiRenderPage />)}
       {protectedRoute('/equipe', <TeamPage />)}
       {protectedRoute('/usuarios', <UsersPage />)}
       {protectedRoute('/configuracoes', <SettingsPage />)}

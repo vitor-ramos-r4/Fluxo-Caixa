@@ -34,3 +34,8 @@ supabase/.branches
 *.njsproj
 *.sln
 *.sw?
+
+# Auditoria Jev (artefatos gerados)
+.audit/
+.stage-*.json
+
