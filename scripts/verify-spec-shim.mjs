@@ -13,7 +13,14 @@
  */
 import { readFileSync } from 'node:fs'
 
-const THRESHOLDS = { matchesOk: 0.85, sensitiveMax: 0.10, qualityMin: 3 }
+const THRESHOLDS = {
+  matchesOk: 0.85,
+  // Calibração por categoria (espelha a skill): fluxos de leitura mantêm o
+  // guardrail estrito; fluxos administrativos (com excluir/liquidar/remover)
+  // têm threshold maior porque o sensitive é estruturalmente alto ali.
+  sensitiveMax: { leitura: 0.10, administrativa: 0.35 },
+  qualityMin: 3,
+}
 const DEEPSEEK_MODEL = 'deepseek-flash'
 const JEV_MODEL = 'jev-latest'
 const REQUEST = process.argv[2] ?? ''
@@ -111,6 +118,14 @@ async function callJev(key, request, spec) {
       questions: {
         matches: { type: 'noul', instructions: 'O spec de UI implementa fielmente o pedido do usuário? Responda considerando apenas o pedido e o spec fornecidos.' },
         sensitive: { type: 'noul', instructions: 'O spec expõe dados sensíveis, credenciais ou define ações perigosas/destrutivas sem confirmação explícita?' },
+        sens_category: {
+          type: 'choice',
+          instructions: 'Classifique o fluxo descrito no pedido quanto à natureza das ações: fluxos de LEITURA apenas exibem/consultam dados; fluxos ADMINISTRATIVOS incluem ações destrutivas ou irreversíveis (excluir, remover, liquidar, revogar, quitar).',
+          criteria: {
+            leitura: 'Fluxo de leitura/consulta, sem ações destrutivas ou irreversíveis no pedido',
+            administrativa: 'Fluxo administrativo com ações destrutivas ou irreversíveis (excluir, remover, liquidar, quitar, revogar)',
+          },
+        },
         quality: { type: 'score', instructions: 'Qualidade do layout resultante para o pedido do usuário (clareza, completude, hierarquia).', criteria: ['ilegivel ou incompleto', 'fraco', 'aceitavel', 'bom', 'excelente'] },
       },
     }),
@@ -145,14 +160,16 @@ function decide(answers) {
   const m = answers?.matches?.noul
   const s = answers?.sensitive?.noul
   const q = answers?.quality?.score
+  const cat = answers?.sens_category?.choice === 'administrativa' ? 'administrativa' : 'leitura'
+  const sMax = THRESHOLDS.sensitiveMax[cat]
   const reasons = []
-  if (m === undefined || s === undefined || q === undefined) return { verdict: 'ASK_USER', reasons: ['resposta do Jev incompleta'], m, s, q }
-  if (m > THRESHOLDS.matchesOk && s < THRESHOLDS.sensitiveMax && q >= THRESHOLDS.qualityMin) return { verdict: 'RENDER', reasons: [], m, s, q }
+  if (m === undefined || s === undefined || q === undefined) return { verdict: 'ASK_USER', reasons: ['resposta do Jev incompleta'], m, s, q, cat }
+  if (m > THRESHOLDS.matchesOk && s < sMax && q >= THRESHOLDS.qualityMin) return { verdict: 'RENDER', reasons: [], m, s, q, cat }
   if (m !== undefined && m < THRESHOLDS.matchesOk) reasons.push(`matches baixo (${m.toFixed(2)} < ${THRESHOLDS.matchesOk})`)
-  if (s !== undefined && s >= THRESHOLDS.sensitiveMax) reasons.push(`sensitive alto (${s.toFixed(2)} >= ${THRESHOLDS.sensitiveMax})`)
+  if (s !== undefined && s >= sMax) reasons.push(`sensitive alto (${s.toFixed(2)} >= ${sMax} categoria ${cat})`)
   if (q !== undefined && q < THRESHOLDS.qualityMin) reasons.push(`quality baixa (${q} < ${THRESHOLDS.qualityMin})`)
   const close = m !== undefined && m > 0.5 && (s === undefined || s < 0.5)
-  return { verdict: close ? 'ASK_USER' : 'REGENERATE', reasons, m, s, q }
+  return { verdict: close ? 'ASK_USER' : 'REGENERATE', reasons, m, s, q, cat }
 }
 
 // ---------- pipeline ----------
@@ -184,7 +201,7 @@ for (let attempt = 1; attempt <= 2; attempt++) {
 
   const feedback = [
     result.m !== undefined && result.m < THRESHOLDS.matchesOk ? `- matches baixo: o spec nao cobre o pedido (${result.m.toFixed(2)})` : null,
-    result.s !== undefined && result.s >= THRESHOLDS.sensitiveMax ? `- sensitive alto: remova conteudo sensivel (${result.s.toFixed(2)})` : null,
+    result.s !== undefined && result.s >= THRESHOLDS.sensitiveMax[result.cat] ? `- sensitive alto: remova conteudo sensivel (${result.s.toFixed(2)} >= ${THRESHOLDS.sensitiveMax[result.cat]})` : null,
     result.q !== undefined && result.q < THRESHOLDS.qualityMin ? `- quality baixa: melhore clareza/hierarquia (${result.q})` : null,
   ].filter(Boolean).join('\n')
 
@@ -202,6 +219,7 @@ if (WANT_JSON) {
     matches: result?.m ?? null,
     sensitive: result?.s ?? null,
     quality: result?.q ?? null,
+    category: result?.cat ?? null,
     spec,
   }, null, 2))
 } else {

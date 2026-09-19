@@ -93,6 +93,16 @@ Escala: **consistency/clarity** são `score` 0–2; **sensitive/dead_end** são 
 | `clarityMin` (telas) | **0.6** (novo) | usuários 1.09 e lançamentos 1.01 passam; relatórios 0.32 dispara |
 | `actionProtocol` (ação do conjunto) | `revisar_parcial` quando conf ≥ 0.6 | ETAPA C deu conf 0.64 |
 
+> **ATUALIZAÇÃO (thresholds aplicados):** o `sensitiveMax` dos specs passou a ser
+> **por categoria**, classificada pelo Jev a cada verificação: `leitura` = 0.10
+> (estrito, inalterado) e `administrativa` = 0.35 (fluxos com excluir/liquidar/
+> remover). Diagnóstico conduzido com o Jev: sensitive alto nesses fluxos é
+> estrutural — a mera presença de ações destrutivas sensibiliza o guardrail
+> (choice `acao_no_conteudo` prob 0.89, conf 0.84), e adicionar um componente
+> de confirmação ao catálogo não reduziria (noul 0.36). Validado após aplicar:
+> dashboard (leitura, sensitive 0.09) mantém guardrail estrito; equipe
+> (administrativa, sensitive 0.38) é avaliada com o threshold da categoria.
+
 ---
 
 ## 7. Custo aproximado das chamadas
