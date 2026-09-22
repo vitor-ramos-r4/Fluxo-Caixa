@@ -353,8 +353,13 @@ export async function parseEntriesWorkbook(file: File): Promise<ParseResult> {
       if (text === 'data') found.date = colNumber
       else if (text.includes('plano de conta') || text === 'categoria' || text === 'conta') {
         found.account ??= colNumber
-      } else if (text === 'valor' || text === 'amount' || text === 'valor_analise') {
-        found.amount = colNumber
+      } else if (text === 'valor' || text === 'amount' || text === 'valor_pago' || text === 'valor_pago_ou_recebido') {
+        // Coluna de valor "pura": preferida, pois não aplica filtro de status.
+        found.amount ??= colNumber
+      } else if (text === 'valor_analise') {
+        // Fallback: a planilha original usa esta coluna com o filtro de status
+        // (zera "em aberto"), então só a usamos se não houver "valor" puro.
+        found.amount ??= colNumber
       } else if (text === 'pago' || text === 'situacao' || text === 'status') {
         found.paid = colNumber
       } else if (text === 'coluna1' || text === 'tipo' || text === 'e/s') {
@@ -423,12 +428,15 @@ export async function parseEntriesWorkbook(file: File): Promise<ParseResult> {
     }
 
     const rawPaid = readCell(row, columns.paid)
+    const paidText = rawPaid === null ? '' : String(rawPaid).trim().toUpperCase()
     const paid =
       rawPaid === null ||
       rawPaid === true ||
-      String(rawPaid).toUpperCase() === 'TRUE' ||
-      String(rawPaid).toLowerCase() === 'pago' ||
-      String(rawPaid).trim() === '1'
+      paidText === 'TRUE' ||
+      paidText === 'VERDADEIRO' ||
+      paidText === 'PAGO' ||
+      paidText === 'SIM' ||
+      paidText === '1'
 
     const description =
       String(readCell(row, columns.description) ?? '').trim() ||
@@ -561,4 +569,116 @@ export function seriesToCsv(series: MonthlyCashflow[] | MonthPoint[]): string {
     return `${month};${income};${expense};${Number(income) - Number(expense)}`
   })
   return [header, ...lines].join('\n')
+}
+
+/* ========================================================================== */
+/* Importação de empresa (cadastro)                                            */
+/* ========================================================================== */
+
+export interface ParsedOrganization {
+  /** Nome da empresa — obrigatório para criar o cadastro. */
+  name: string
+  legalName: string | null
+  document: string | null
+  segment: string | null
+  /** Resumo da importação (opcional, usado na prévia da UI). */
+  lançamentos?: number
+  contas?: number
+}
+
+/**
+ * Lê o cadastro da empresa na aba "Cadastros" da planilha original.
+ *
+ * Procura por células cujo texto contenha "empresa:" e usa o valor à direita
+ * como nome. Campos opcionais (razão social, CNPJ, segmento) são detectados
+ * por rótulo conhecido, se existirem — a planilha base só tem o nome, então
+ * os demais ficam nulos sem problema.
+ */
+export async function parseOrganizationWorkbook(file: File): Promise<ParsedOrganization> {
+  const ExcelJS = await loadExcelJS()
+  const workbook = new ExcelJS.Workbook()
+  await workbook.xlsx.load(await file.arrayBuffer())
+
+  const sheet =
+    workbook.getWorksheet('Cadastros') ??
+    workbook.getWorksheet('Cadastro') ??
+    workbook.worksheets[0]
+
+  if (!sheet) {
+    throw new Error('A planilha não contém a aba "Cadastros".')
+  }
+
+  const found: Partial<Pick<ParsedOrganization, 'name' | 'legalName' | 'document' | 'segment'>> = {}
+
+  // Rótulos conhecidos, com normalização (minúsculas, sem acento).
+  const LABELS: { match: RegExp; field: 'name' | 'legalName' | 'document' | 'segment' }[] = [
+    { match: /empresa/i, field: 'name' },
+    { match: /razao social|razão social|nome fantasia|legal/i, field: 'legalName' },
+    { match: /cnpj|cpf|documento/i, field: 'document' },
+    { match: /segmento|setor|ramo|segment/i, field: 'segment' },
+  ]
+
+  for (let r = 1; r <= Math.min(sheet.rowCount, 60); r += 1) {
+    const row = sheet.getRow(r)
+
+    row.eachCell((cell, col) => {
+      const raw = cell.value
+      const text =
+        typeof raw === 'string'
+          ? raw.trim()
+          : raw instanceof Date
+            ? raw.toISOString()
+            : raw !== null && raw !== undefined
+              ? String(raw)
+              : ''
+
+      if (!text) return
+      const normalized = text
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+
+      for (const { match, field } of LABELS) {
+        // Só trata a célula como rótulo se for texto curto (evita pegar
+        // o valor como rótulo de si mesmo).
+        if (match.test(normalized) && text.length <= 40) {
+          const valueCell = row.getCell(col + 1)
+          const value = valueCell?.value
+          if (value === null || value === undefined || value === '') continue
+
+          const valueText =
+            typeof value === 'string'
+              ? value.trim()
+              : value instanceof Date
+                ? value.toISOString().slice(0, 10)
+                : String(value).trim()
+
+          if (!found[field] && valueText && field !== 'name') {
+            found[field] = valueText
+          }
+          if (field === 'name' && !found.name) found.name = valueText
+        }
+      }
+    })
+  }
+
+  if (!found.name || found.name.length < 2) {
+    throw new Error(
+      'Não encontrei o nome da empresa. Preencha a célula ao lado de "Empresa:" na aba Cadastros.',
+    )
+  }
+
+  // Evita importar o placeholder da planilha de exemplo.
+  if (/^nome da empresa$/i.test(found.name)) {
+    throw new Error(
+      'A planilha ainda usa o nome de exemplo ("Nome da Empresa"). Preencha o nome real da empresa antes de importar.',
+    )
+  }
+
+  return {
+    name: found.name,
+    legalName: found.legalName ?? null,
+    document: found.document ?? null,
+    segment: found.segment ?? null,
+  }
 }

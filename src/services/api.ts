@@ -959,3 +959,96 @@ export async function setMemberRole(
   if (error) throw new Error(describeError(error))
   return readAccessResult(data)
 }
+
+
+/* ========================================================================== */
+/* Importação de empresa (planilha)                                            */
+/* ========================================================================== */
+
+export interface OrgImportResult {
+  organization: Organization
+  accountsCreated: number
+  entriesImported: number
+}
+
+/**
+ * Importa uma empresa a partir dos dados lidos da planilha:
+ * cria a organização, cria as contas do plano que ainda não existem e
+ * insere os lançamentos. Idempotente por CNPJ da planilha — se o documento
+ * já estiver em uso pela própria conta, devolve erro claro.
+ */
+export async function importOrganizationFromSpreadsheet(
+  org: CreateOrganizationInput,
+  accounts: { name: string; kind: 'receita' | 'despesa' }[],
+  entries: {
+    date: string
+    description: string
+    accountName: string
+    amount: number
+    kind: 'entrada' | 'saida'
+    status: EntryStatus
+    reference?: string | null
+  }[],
+): Promise<OrgImportResult> {
+  // 1. Cria a empresa. O trigger semeia o plano de contas padrão.
+  const organization = await createOrganization(org)
+
+  // 2. Garante que as contas da planilha existam (linka pelo nome).
+  const { data: existing } = await supabase
+    .from('chart_of_accounts')
+    .select('id, name, kind')
+    .eq('org_id', organization.id)
+
+  const byName = new Map((existing ?? []).map((a) => [a.name.toLowerCase(), a]))
+  let accountsCreated = 0
+
+  for (const account of accounts) {
+    const found = byName.get(account.name.toLowerCase())
+    if (!found) {
+      const created = await createAccount({
+        org_id: organization.id,
+        name: account.name,
+        kind: account.kind,
+      })
+      byName.set(created.name.toLowerCase(), created)
+      accountsCreated += 1
+    } else if (found.kind !== account.kind) {
+      // Conflito raro (mesmo nome, natureza diferente): cria com sufixo.
+      const created = await createAccount({
+        org_id: organization.id,
+        name: `${account.name} (importada)`,
+        kind: account.kind,
+      })
+      byName.set(created.name.toLowerCase(), created)
+      accountsCreated += 1
+    }
+  }
+
+  // 3. Insere os lançamentos, agora já com conta resolvida.
+  const rows: EntryInput[] = []
+  for (const entry of entries) {
+    const account = byName.get(entry.accountName.toLowerCase())
+    if (!account) continue
+
+    rows.push({
+      org_id: organization.id,
+      account_id: account.id,
+      wallet_id: null,
+      party_id: null,
+      description: entry.description,
+      amount: entry.amount,
+      issued_on: entry.date,
+      status: entry.status,
+      settled_on: entry.status === 'pago' ? entry.date : null,
+      reference: entry.reference ?? null,
+      notes: 'Importado de planilha',
+    })
+  }
+
+  const entriesImported = rows.length
+  if (rows.length) {
+    await bulkCreateEntries(rows)
+  }
+
+  return { organization, accountsCreated, entriesImported }
+}

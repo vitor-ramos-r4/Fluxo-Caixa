@@ -39,3 +39,8 @@ supabase/.branches
 .audit/
 .stage-*.json
 
+
+# Planilhas de importacao (dados de entrada, nao versionar)
+*.xlsx
+*.xlsm
+

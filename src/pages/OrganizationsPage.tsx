@@ -6,6 +6,7 @@ import { z } from 'zod'
 import {
   Building2,
   Check,
+  FileSpreadsheet,
   Loader2,
   Pencil,
   Plus,
@@ -16,9 +17,15 @@ import { useOrganization } from '@/contexts/OrgContext'
 import {
   archiveOrganization,
   createOrganization,
+  importOrganizationFromSpreadsheet,
   seedDemoData,
   updateOrganization,
 } from '@/services/api'
+import {
+  parseEntriesWorkbook,
+  parseOrganizationWorkbook,
+  type ParsedOrganization,
+} from '@/services/excel'
 import { formatCurrency, formatDate, initials, onlyDigits } from '@/lib/format'
 import { PageBody, PageHeader } from '@/components/layout/Page'
 import { Button } from '@/components/ui/Button'
@@ -61,6 +68,12 @@ export function OrganizationsPage() {
     null,
   )
   const [seedingId, setSeedingId] = useState<string | null>(null)
+
+  // Importação por planilha
+  const [importPreview, setImportPreview] = useState<ParsedOrganization | null>(null)
+  const [importError, setImportError] = useState<string | null>(null)
+  const [importing, setImporting] = useState(false)
+  const [importFileName, setImportFileName] = useState<string | null>(null)
 
   const invalidate = () => {
     void queryClient.invalidateQueries({ queryKey: ['organizations'] })
@@ -107,19 +120,99 @@ export function OrganizationsPage() {
     },
   })
 
+  /** Lê a planilha (cadastro + lançamentos) e mostra a prévia antes de criar. */
+  async function handleImportFile(file: File) {
+    setImportError(null)
+    setImportPreview(null)
+    setImportFileName(null)
+
+    try {
+      const org = await parseOrganizationWorkbook(file)
+      const entries = await parseEntriesWorkbook(file)
+      setImportPreview({ ...org, lançamentos: entries.entries.length, contas: entries.accounts.length })
+      setImportFileName(file.name)
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : 'Não foi possível ler a planilha.')
+    }
+  }
+
+  const importMutation = useMutation({
+    mutationFn: async (preview: ParsedOrganization) => {
+      // Re-lê os lançamentos do arquivo original, pois a prévia só guarda os
+      // totais — evita guardar 69 objetos em estado.
+      const input = document.getElementById('import-empresa-input') as HTMLInputElement | null
+      const file = input?.files?.[0]
+      if (!file) throw new Error('Arquivo não encontrado. Selecione a planilha novamente.')
+
+      const entries = await parseEntriesWorkbook(file)
+      return importOrganizationFromSpreadsheet(
+        {
+          name: preview.name,
+          legal_name: preview.legalName || undefined,
+          document: preview.document ? onlyDigits(preview.document) : undefined,
+          segment: preview.segment || undefined,
+        },
+        entries.accounts.map((a) => ({ name: a.name, kind: a.kind })),
+        entries.entries.map((e) => ({
+          date: e.date,
+          description: e.description,
+          accountName: e.accountName,
+          amount: e.amount,
+          kind: e.kind,
+          status: e.paid ? 'pago' : 'em_aberto',
+          reference: e.reference,
+        })),
+      )
+    },
+    onSuccess: (result) => {
+      invalidate()
+      // Entra direto na empresa recém-importada.
+      setActiveOrgId(result.organization.id)
+      setImportPreview(null)
+      setImportFileName(null)
+      setImporting(false)
+    },
+  })
+
+  function confirmImport() {
+    if (!importPreview) return
+    setImporting(true)
+    importMutation.mutate(importPreview)
+  }
+
   return (
     <PageBody>
       <PageHeader
         title="Empresas"
         description="Cada empresa tem seu próprio plano de contas, contas bancárias e lançamentos"
         actions={
-          <Button
-            variant="primary"
-            icon={<Plus className="size-4" />}
-            onClick={() => setCreating(true)}
-          >
-            Nova empresa
-          </Button>
+          <>
+            <Button
+              variant="secondary"
+              icon={<FileSpreadsheet className="size-4" />}
+              onClick={() => document.getElementById('import-empresa-input')?.click()}
+            >
+              Importar empresa
+            </Button>
+            <Button
+              variant="primary"
+              icon={<Plus className="size-4" />}
+              onClick={() => setCreating(true)}
+            >
+              Nova empresa
+            </Button>
+            <input
+              id="import-empresa-input"
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              className="hidden"
+              onChange={(event) => {
+                const file = event.target.files?.[0]
+                if (file) void handleImportFile(file)
+                event.target.value = ''
+              }}
+            />
+          </>
         }
       />
 
@@ -341,6 +434,116 @@ export function OrganizationsPage() {
           deixará de aparecer na seleção. Nenhum lançamento é apagado — é
           possível reativá-la depois direto no banco, se necessário.
         </p>
+      </Modal>
+
+      {/* Prévia da importação por planilha */}
+      <Modal
+        open={Boolean(importPreview) || Boolean(importError)}
+        onClose={() => {
+          setImportPreview(null)
+          setImportError(null)
+          setImportFileName(null)
+        }}
+        title="Importar empresa da planilha"
+        description={
+          importPreview
+            ? `Dados lidos de ${importFileName ?? 'planilha'} — confira antes de criar.`
+            : undefined
+        }
+        footer={
+          importPreview ? (
+            <>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setImportPreview(null)
+                  setImportFileName(null)
+                }}
+                disabled={importing}
+              >
+                Cancelar
+              </Button>
+              <Button
+                variant="primary"
+                loading={importing || importMutation.isPending}
+                icon={<Check className="size-4" />}
+                onClick={confirmImport}
+              >
+                Criar empresa
+              </Button>
+            </>
+          ) : (
+            <Button variant="secondary" onClick={() => setImportError(null)}>
+              Fechar
+            </Button>
+          )
+        }
+      >
+        {importError ? (
+          <div
+            role="alert"
+            className="rounded-lg border border-[color-mix(in_oklch,var(--color-caution)_32%,transparent)] bg-[var(--color-caution-soft)] px-3.5 py-3 text-[13px] leading-5 text-[color-mix(in_oklch,var(--color-caution)_70%,black)]"
+          >
+            {importError}
+          </div>
+        ) : importPreview ? (
+          <div className="space-y-4">
+            {importMutation.isError && (
+              <div className="rounded-lg border border-[color-mix(in_oklch,var(--color-negative)_25%,transparent)] bg-[var(--color-negative-soft)] px-3.5 py-2.5 text-[13px] text-negative">
+                {importMutation.error instanceof Error
+                  ? importMutation.error.message
+                  : 'Não foi possível criar a empresa.'}
+              </div>
+            )}
+
+            <dl className="space-y-2.5 text-[13px]">
+              <div className="flex items-start gap-3">
+                <dt className="w-28 shrink-0 text-[12px] text-ink-500">Nome</dt>
+                <dd className="font-semibold text-ink-900">{importPreview.name}</dd>
+              </div>
+              <div className="flex items-start gap-3">
+                <dt className="w-28 shrink-0 text-[12px] text-ink-500">Razão social</dt>
+                <dd className="text-ink-700">{importPreview.legalName ?? '—'}</dd>
+              </div>
+              <div className="flex items-start gap-3">
+                <dt className="w-28 shrink-0 text-[12px] text-ink-500">CNPJ/CPF</dt>
+                <dd className="text-ink-700">
+                  {importPreview.document
+                    ? importPreview.document.replace(
+                        /^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,
+                        '$1.$2.$3/$4-$5',
+                      )
+                    : '—'}
+                </dd>
+              </div>
+              <div className="flex items-start gap-3">
+                <dt className="w-28 shrink-0 text-[12px] text-ink-500">Segmento</dt>
+                <dd className="text-ink-700">{importPreview.segment ?? '—'}</dd>
+              </div>
+              {(importPreview.lançamentos !== undefined || importPreview.contas !== undefined) && (
+                <div className="flex items-start gap-3 border-t border-ink-100 pt-3">
+                  <dt className="w-28 shrink-0 text-[12px] text-ink-500">Movimentos</dt>
+                  <dd className="text-ink-700">
+                    {importPreview.lançamentos ?? 0} lançamento
+                    {(importPreview.lançamentos ?? 0) === 1 ? '' : 's'} em{' '}
+                    {importPreview.contas ?? 0} conta
+                    {(importPreview.contas ?? 0) === 1 ? '' : 's'}
+                  </dd>
+                </div>
+              )}
+            </dl>
+
+            <div className="flex items-start gap-2.5 rounded-lg border border-ink-200 bg-ink-50 px-3.5 py-3">
+              <Sparkles className="mt-0.5 size-4 shrink-0 text-ink-400" />
+              <p className="text-[12px] leading-5 text-ink-600">
+                O plano de contas padrão é criado automaticamente; as contas da
+                planilha que ainda não existem também entram, e{' '}
+                {importPreview.lançamentos ?? 0} movimentos serão importados
+                junto com a empresa.
+              </p>
+            </div>
+          </div>
+        ) : null}
       </Modal>
 
       {archiveMutation.isError && (
