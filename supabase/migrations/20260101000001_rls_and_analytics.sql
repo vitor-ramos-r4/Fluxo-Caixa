@@ -208,8 +208,6 @@ begin
     ('Outros Recebimentos 9', 'receita',                      13),
     ('Outros Recebimentos 10','receita',                      14),
     ('Outros Recebimentos 11','receita',                      15),
-    ('Outros Recebimentos 12','receita',                      16),
-    ('Outros Recebimentos 13','receita',                      17),
     ('Retirada de Sócio',     'despesa',                       1),
     ('Transferências Bancárias','despesa',                     2),
     ('Fornecedores',          'despesa',                       3),
@@ -224,9 +222,7 @@ begin
     ('Outras Saídas 4',       'despesa',                      12),
     ('Outras Saídas 5',       'despesa',                      13),
     ('Outras Saídas 6',       'despesa',                      14),
-    ('Outras Saídas 7',       'despesa',                      15),
-    ('Outras Saídas 8',       'despesa',                      16),
-    ('Outras Saídas 9',       'despesa',                      17)
+    ('Outras Saídas 7',       'despesa',                      15)
   ) as t (name, kind, ord)
   on conflict do nothing;
 end;

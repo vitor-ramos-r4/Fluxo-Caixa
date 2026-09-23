@@ -202,10 +202,10 @@ export function computeKpis(
   const result = income - expense
 
   const months = series.length || 1
-  const midpoint = Math.floor(series.length / 2)
+  const trendSplitIndex = Math.floor(series.length / 2)
 
-  const firstHalf = series.slice(0, midpoint).reduce((s, m) => s + m.result, 0)
-  const secondHalf = series.slice(midpoint).reduce((s, m) => s + m.result, 0)
+  const firstHalf = series.slice(0, trendSplitIndex).reduce((s, m) => s + m.result, 0)
+  const secondHalf = series.slice(trendSplitIndex).reduce((s, m) => s + m.result, 0)
 
   return {
     income,
